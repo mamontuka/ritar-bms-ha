@@ -41,6 +41,7 @@ UPDATE 1.8 - added support for serial connection, now you can choose what connec
 UPDATE 1.8.1 - docker-compose.yaml hotfix, added devices /dev/ttyUSB0 and /dev/ttyUSB1 </br>
 UPDATE 1.8.2 - config.yaml hotfix, added uart:true, usb:true </br>
 UPDATE 1.8.4 - improved temperature checks before publishing into MQTT. default batteries read timeout changed to 15 seconds, for more responsive work. </br>
+UPDATE 1.8.5 - cosmetic switch in configuration, for numbering cells from zero, like "cell_01, cell_02... cell_16" instead default naming like "cell_1, cell_2... cell_16" </br>
 
 Homeassitant entities cards examples : https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples </br>
 
