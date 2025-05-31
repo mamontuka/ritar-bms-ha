@@ -134,7 +134,7 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         result['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
     return result
 
-def publish_sensors(client, index, data, mos_temp, env_temp, model):
+def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
     base = f"homeassistant/sensor/ritar_{index}"
     device_info = {
         'identifiers': [f"ritar_{index}"],
@@ -172,9 +172,9 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model):
     elif index in last_valid_cycle_count:
         pub('cycle', 'Cycle Count', None, None, last_valid_cycle_count[index], state_class='total_increasing')
     # Cell voltages
-    if data['cells']:
-        for i, v in enumerate(data['cells'], start=1):
-            pub(f'cell_{i}', f'Cell {i}', 'voltage', 'mV', v)
+    for i, v in enumerate(data['cells'], start=1):
+        cell_id = f'{i:02}' if zero_pad_cells else str(i)
+        pub(f'cell_{cell_id}', f'Cell {cell_id}', 'voltage', 'mV', v)
     # Temperatures
     if data['temps']:
         last_temps = last_valid_temps.get(index, [])
@@ -200,6 +200,7 @@ if __name__ == '__main__':
     gateway = ModbusGateway(config)
     battery_model = config.get('battery_model', 'BAT-5KWH-51.2V')
     read_timeout = config.get('read_timeout', 15)
+    zero_pad_cells = config.get('options', {}).get('zero_pad_cells', False)
     queries_delay, next_battery_delay = validate_delay(config)
 
     # MQTT setup
