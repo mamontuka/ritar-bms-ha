@@ -200,7 +200,7 @@ if __name__ == '__main__':
     gateway = ModbusGateway(config)
     battery_model = config.get('battery_model', 'BAT-5KWH-51.2V')
     read_timeout = config.get('read_timeout', 15)
-    zero_pad_cells = config.get('options', {}).get('zero_pad_cells', False)
+    zero_pad_cells = config.get('zero_pad_cells', False)
     queries_delay, next_battery_delay = validate_delay(config)
 
     # MQTT setup
