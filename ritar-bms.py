@@ -297,7 +297,7 @@ if __name__ == '__main__':
                     print(f"Battery {i} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
                 print("-" * 112)
                 # Publish
-                publish_sensors(client, i, data, mos_t, env_t, battery_model)
+                publish_sensors(client, i, data, mos_t, env_t, battery_model, zero_pad_cells)
             gateway.close()
         except Exception as e:
             print("Error:", e)
