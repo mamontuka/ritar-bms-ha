@@ -228,7 +228,7 @@ if __name__ == '__main__':
     print(f"Read Timeout    : {read_timeout}s")
     print(f"Queries Delay   : {queries_delay}s")
     print(f"Next Bat. Delay : {next_battery_delay}s")
-    print(f"Zero Pad Cells: {zero_pad_cells}")
+    print(f"Zero Pad Cells  : {zero_pad_cells}")
     print("-" * 112)
 
     num_batt = config.get('num_batteries', 1)
