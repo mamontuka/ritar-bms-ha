@@ -36,13 +36,14 @@ UPDATE 1.7 - MAJOR UPDATE. Serious main code reworking and optimizations, for FU
 UPDATE 1.7.2 - added support for **up to 14 battery units. READ THIS information about modbus IDs, DIP switches, inverter setup !** - https://github.com/mamontuka/ritar-bms-ha/blob/main/RS-485_to_ethernet_gate/WIRING.md . Modbus IDs 0 and 15 - reserved for technical purposes. </br>
 UPDATE 1.7.3 - added support for **up to 16 battery units. 15 - DIP switches 1111, 16 (zero number actualy) - DIP switches 0000.** Added important information about alternative wiring with Deye inverters over **CAN bus - NEW UNDOCUMENTED IN OFFICIAL SOURCES WAY TO CONNECT WITH DEYE INVERTERS OVER CAN BUS**
 https://github.com/mamontuka/ritar-bms-ha/tree/main/UNDOCUMENTED_WIRING_WITH_DEYE/README.md </br>
-.</br>
 UPDATE 1.8 - added support for serial connection, now you can choose what connection type you prefer. Major reworks and optimizations. </br>
 UPDATE 1.8.1 - docker-compose.yaml hotfix, added devices /dev/ttyUSB0 and /dev/ttyUSB1 </br>
 UPDATE 1.8.2 - config.yaml hotfix, added uart:true, usb:true </br>
 UPDATE 1.8.4 - improved temperature checks before publishing into MQTT. default batteries read timeout changed to 15 seconds, for more responsive work. </br>
 UPDATE 1.8.6 - cosmetic switch in configuration, for numbering cells from zero, like "cell_01, cell_02... cell_16" instead default naming like "cell_1, cell_2... cell_16" </br>
 UPDATE 1.8.7 - informational. **README HERE:** https://github.com/mamontuka/ritar-bms-ha/tree/main/BMS_SETTINGS </br>
+.</br>
+UPDATE 1.8.8 - reworked modbus_gateway.py for compability with my brand new "Unified Modbus BMS debugger/commandline tool" - https://github.com/mamontuka/ritar-bms-ha/tree/main/Modbus_BMS_Debugger, for development purposes and future releases. </br>
 
 Homeassitant entities cards examples : https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples </br>
 
