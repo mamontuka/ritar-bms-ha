@@ -57,7 +57,7 @@ Example usage for get SOC, SOH, remain capacity, full capacity values :
 
     python3 bms_tool.py --tcp 192.168.5.29:50500 --slave 1 --read SOC --count 6 --slave 1 --mode rtu_tcp
 
-    [READ] Register 1 values: [1000, 1000, 10000, 10000, 10000, 16]
+    [READ] Register 2 values: [1000, 1000, 10000, 10000, 10000, 16]
 
 "--count 6" option mean what we read 6 registers, with start from "SOC" (register 2) and end on "Battery_cycle_count" (register 7) (watch in register_map.yaml)
 
