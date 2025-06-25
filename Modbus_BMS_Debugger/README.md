@@ -4,7 +4,9 @@
 
 Require python modules - pyyaml, pyserial
 
-Modbus registers map in register_map.yaml can be ajusted for any BMS what works over modbus, or setted another one by option --map file_name.yaml
+Modbus registers map in **register_map.yaml** can be ajusted for any BMS what works over modbus, or setted another one by option:
+
+        --map file_name.yaml
 
 First use :
 
