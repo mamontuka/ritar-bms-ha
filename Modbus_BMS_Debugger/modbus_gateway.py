@@ -37,7 +37,7 @@ class ModbusGateway:
             self._sock = None
         elif self.connection_mode == 'rtu_serial':
             self.serial_port = cfg['serial_port']
-            self.baudrate = cfg.get('baudrate', 115200)
+            self.baudrate = cfg.get('baudrate', 9600)
             self._serial = None
         else:
             raise ValueError(f"Unknown connection_mode: {self.connection_mode}")
