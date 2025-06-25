@@ -51,15 +51,21 @@ Example usage for get cells voltages :
 
 Result output
 
-    [DEBUG] Raw RTU TCP response: 0103200d2a0d520d440d520d5a0d410d640d4b0d500d2d0d590d460d560d340d5c0d5cfbb0
     [READ] Register 40 values: [3370, 3410, 3396, 3410, 3418, 3393, 3428, 3403, 3408, 3373, 3417, 3398, 3414, 3380, 3420, 3420]
 
 Example usage for get SOC, SOH, remain capacity, full capacity values :
 
     python3 bms_tool.py --tcp 192.168.5.29:50500 --slave 1 --read SOC --count 6 --slave 1 --mode rtu_tcp
 
-    [DEBUG] Raw RTU TCP response: 01030c155003e803e8271027102710ffcb
-    [READ] Register 1 values: [5456, 1000, 1000, 10000, 10000, 10000]
+    [READ] Register 1 values: [1000, 1000, 10000, 10000, 10000, 16]
 
 "--count 6" option mean what we read 6 registers, with start from "SOC" (register 2) and end on "Battery_cycle_count" (register 7) (watch in register_map.yaml)
+
+and for example :
+
+        python3 bms_tool.py --tcp 192.168.5.29:50500 --slave 1 --read 1 --count 7 --slave 1 --mode rtu_tcp
+        
+        [READ] Register 1 values: [5448, 1000, 1000, 10000, 10000, 10000, 16]
+
+mean what we read from 1st register (block voltage) to 7 (cycles)
 
