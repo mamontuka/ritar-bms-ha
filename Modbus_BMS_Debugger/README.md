@@ -67,5 +67,5 @@ and for example :
         
         [READ] Register 1 values: [5448, 1000, 1000, 10000, 10000, 10000, 16]
 
-mean what we read from 1st register (block voltage) to 7 (cycles)
+mean what we read from 1st register (block voltage) to 7 (cycles) on "--slave 1" (battery number 1 by DIP switches)
 
