@@ -1,4 +1,4 @@
-![screenshot](https://github.com/mamontuka/ritar-bms-ha/blob/main/logo.png)\
+![screenshot]\
 </br>
 </br>
 ### ritar-bms-ha
@@ -48,7 +48,7 @@ UPDATE 1.3 - added Current charge/discharge Ampers sensor, example templates upd
 UPDATE 1.2 - added MOS and Environment temperature sensors, major bugfixes, stability improvements, reading timeout set over config, example templates updated with new sensors. </br>\
 UPDATE 1.1 - added cells temperature sensors 1-4 for batteries 1-2, example templates updated</br>
 
-
+[screenshot]: https://github.com/mamontuka/ritar-bms-ha/blob/main/logo.png
 
 
 
