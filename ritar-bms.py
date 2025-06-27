@@ -28,6 +28,9 @@ last_valid_cycle_count = {}
 last_valid_temps = {}
 last_valid_extra = {}
 
+# Store last valid SOC values
+last_valid_soc = {}
+
 # --- Configuration loader ---
 def load_config():
     if os.path.exists('/data/options.json'):
@@ -194,7 +197,44 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
         pub('temp_env', 'T ENV', 'temperature', '°C', env_temp)
     last_valid_extra[index] = (last_mos, last_env)
 
-# --- Main execution ---
+# --- Summary MQTT sensors publisher ---
+def publish_summary_sensors(client, soc_avg, volt_avg, current_sum, power_sum, mos_avg=None, env_avg=None):
+    base = "homeassistant/sensor/ritar_ess"
+    device_info = {
+        'identifiers': ['ritar_ess'],
+        'name': 'Ritar ESS',
+        'model': 'Energy Storage System',
+        'manufacturer': 'Ritar'
+    }
+    def pub(suffix, name, dev_class, unit, value, state_class=None):
+        cfg_topic = f"{base}/{suffix}/config"
+        state_topic = f"{base}/{suffix}"
+        cfg = {
+            'name': name,
+            'state_topic': state_topic,
+            'unique_id': f"ritar_ess_{suffix}",
+            'object_id': f"ritar_ess_{suffix}",
+            'device_class': dev_class,
+            'unit_of_measurement': unit,
+            'value_template': '{{ value_json.state }}',
+            'device': device_info
+        }
+        if state_class:
+            cfg['state_class'] = state_class
+        client.publish(cfg_topic, json.dumps(cfg), retain=True)
+        client.publish(state_topic, json.dumps({'state': value}), retain=True)
+    if soc_avg is not None:
+        pub('soc_avg', 'SOC Average', 'battery', '%', soc_avg, state_class='measurement')
+    if volt_avg is not None:
+        pub('voltage_avg', 'Voltage Average', 'voltage', 'V', float("{:.2f}".format(volt_avg)), state_class='measurement')
+    if mos_avg is not None:
+        pub('mos_avg', 'MOS Temp Average', 'temperature', '°C', round(mos_avg, 1), state_class='measurement')
+    if env_avg is not None:
+        pub('env_avg', 'ENV Temp Average', 'temperature', '°C', round(env_avg, 1), state_class='measurement')
+    pub('current_total', 'Total Current', 'current', 'A', round(current_sum, 2), state_class='measurement')
+    pub('power_total', 'Total Power', 'power', 'W', round(power_sum, 2), state_class='measurement')
+
+
 if __name__ == '__main__':
     config = load_config()
     gateway = ModbusGateway(config)
@@ -247,28 +287,38 @@ if __name__ == '__main__':
         time.sleep(read_timeout)
         try:
             gateway.open()
+            valid_soc_list = []
+            valid_voltage_list = []
+            valid_mos_list = []
+            valid_env_list = []
+            total_current = 0.0
+            total_power = 0.0
             for i in range(1, num_batt + 1):
                 if i > 1:
                     time.sleep(next_battery_delay)
                 q = queries[i]
+
                 # Block voltage
                 time.sleep(queries_delay)
                 gateway.send(q['block_voltage'])
                 bv = gateway.recv(37)
                 if not valid_len(bv, 37):
                     bv = None
+
                 # Cells voltage
                 time.sleep(queries_delay)
                 gateway.send(q['cells_voltage'])
                 cv = gateway.recv(37)
                 if not valid_len(cv, 37):
                     cv = None
+
                 # Temperature
                 time.sleep(queries_delay)
                 gateway.send(q['temperature'])
                 tv = gateway.recv(13)
                 if not valid_len(tv, 13):
                     tv = None
+
                 # Extra temperature
                 et = None
                 if tv:
@@ -277,28 +327,59 @@ if __name__ == '__main__':
                     et = gateway.recv(25)
                     if not valid_len(et, 25):
                         et = None
-                # Process
+
+                # Process battery data
                 data = process_battery_data(i, bv, cv, tv)
                 mos_t, env_t = process_extra_temperature(et)
-                # Filter invalid
+
+                # Filter invalid battery voltage and current, skip if bad
                 if data['voltage'] is None or not (volt_min_limit <= data['voltage'] <= volt_max_limit):
-                    continue
-                if data['soc'] is None or not (0 <= data['soc'] <= 100):
                     continue
                 if data['current'] is None:
                     continue
-                # Console output
-                print(f"Battery {i} SOC: {data['voltage']} V, Charged: {data['soc']} %, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
+
+                # SOC logic with caching last valid value
+                if data['soc'] is not None and 0 <= data['soc'] <= 100:
+                    last_valid_soc[i] = data['soc']
+                    valid_soc_list.append(data['soc'])
+                else:
+                    if i in last_valid_soc:
+                        valid_soc_list.append(last_valid_soc[i])
+                    else:
+                        # No valid SOC known yet, skip adding this battery's SOC
+                        pass
+
+                valid_voltage_list.append(data['voltage'])
+                total_current += data['current']
+                total_power += data['power']
+
+                # Print battery info
+                print(f"Battery {i} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
                 if data['cells']:
                     print(f"Battery {i} Cells: {', '.join(str(v) for v in data['cells'])}")
                 if data['temps']:
                     print(f"Battery {i} Temps: {', '.join(str(t) for t in data['temps'])}°C")
                 if mos_t is not None and env_t is not None:
                     print(f"Battery {i} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
+                    if mos_t is not None:
+                        valid_mos_list.append(mos_t)
+                    if env_t is not None:
+                        valid_env_list.append(env_t)
                 print("-" * 112)
-                # Publish
+
+                # Publish individual battery sensors
                 publish_sensors(client, i, data, mos_t, env_t, battery_model, zero_pad_cells)
+
+            # Publish summary sensors for all batteries
+            if valid_soc_list:
+                avg_soc = round(sum(valid_soc_list) / len(valid_soc_list), 1)
+                avg_voltage = round(sum(valid_voltage_list) / len(valid_voltage_list), 2) if valid_voltage_list else None
+                avg_mos = round(sum(valid_mos_list) / len(valid_mos_list), 1) if valid_mos_list else None
+                avg_env = round(sum(valid_env_list) / len(valid_env_list), 1) if valid_env_list else None
+                publish_summary_sensors(client, avg_soc, avg_voltage, total_current, total_power, avg_mos, avg_env)
+
             gateway.close()
+
         except Exception as e:
             print("Error:", e)
             time.sleep(read_timeout)
