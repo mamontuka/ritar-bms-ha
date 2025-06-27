@@ -28,7 +28,7 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.8.9 - added new MQTT device - **"Ritar ESS"**, what contain summary SOC, average batteries voltage, average MOS and environment temperatures, summary current and power sensors, for all present battery units. </br>\
+>UPDATE 1.8.9 - added new MQTT device - **"Ritar ESS"**, what contain summary SOC, average batteries voltage, average MOS and environment temperatures, summary current and power sensors, for all present battery units. Several small fixes. </br>\
 UPDATE 1.8.8 - reworked modbus_gateway.py for compability with my brand new [**Unified Modbus BMS debugger/commandline tool**](https://github.com/mamontuka/ritar-bms-ha/tree/main/Modbus_BMS_Debugger), for development purposes and future releases. </br>\
 UPDATE 1.8.7 - informational. [README HERE](https://github.com/mamontuka/ritar-bms-ha/tree/main/BMS_SETTINGS) </br>\
 UPDATE 1.8.6 - cosmetic switch in configuration, for numbering cells from zero, like "cell_01, cell_02... cell_16" instead default naming like "cell_1, cell_2... cell_16" </br> \
