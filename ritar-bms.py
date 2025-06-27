@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+# === Import required modules ===
 import time
 import binascii
 import os
@@ -11,6 +12,7 @@ import paho.mqtt.client as mqtt
 import protocol
 from modbus_gateway import ModbusGateway
 
+# === Suppress deprecation warnings ===
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # --- Static limits ---
@@ -21,15 +23,14 @@ volt_max_limit = 60.00
 temp_min_limit = -20
 temp_max_limit = 55
 
-# Store last valid cycle counts
+# --- Persistent cache for fallback values ---
 last_valid_cycle_count = {}
-
-# Store last valid temperatures
 last_valid_temps = {}
 last_valid_extra = {}
-
-# Store last valid SOC values
 last_valid_soc = {}
+last_valid_voltage = {}
+last_valid_current = {}
+last_valid_power = {}
 
 # --- Configuration loader ---
 def load_config():
@@ -63,6 +64,7 @@ def validate_delay(cfg):
 def valid_len(buf, length):
     return buf is not None and len(buf) == length
 
+# --- Temperature parsers ---
 def hex_to_temperature(hex_str):
     pairs = [hex_str[i:i+2] for i in range(0, len(hex_str), 2)]
     data = pairs[3:-2]
@@ -101,6 +103,7 @@ def filter_temperature_spikes(new_vals, last_vals, delta_limit=10):
             filtered.append(val)
     return filtered
 
+# --- Battery data parser ---
 def process_battery_data(index, block_buf, cells_buf, temp_buf):
     result = {
         'voltage': None,
@@ -111,7 +114,7 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         'cells': None,
         'temps': None
     }
-    # Block voltage
+    # Block voltage, SOC, current, cycles
     if valid_len(block_buf, 37):
         hb = binascii.hexlify(block_buf).decode()
         cur_raw = int(hb[6:10], 16)
@@ -123,20 +126,21 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         cycle = int(hb[34:38], 16)
         power = round(current * voltage, 2)
         result.update({'current': current, 'voltage': voltage, 'soc': soc, 'cycle': cycle, 'power': power})
-    # Cells voltage
+    # Cell voltages
     if valid_len(cells_buf, 37) and cells_buf[0] == index:
         hv = binascii.hexlify(cells_buf).decode()
         raw_cells = [int(hv[6 + 4*i:10 + 4*i], 16) for i in range(16)]
         filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
         if len([v for v in filtered if v is not None]) >= 8:
             result['cells'] = filtered
-    # Temperature buffer
+    # Temperature list
     if valid_len(temp_buf, 13):
         hx = binascii.hexlify(temp_buf).decode()
         temps = hex_to_temperature(hx)
         result['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
     return result
 
+# --- MQTT sensor publisher ---
 def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
     base = f"homeassistant/sensor/ritar_{index}"
     device_info = {
@@ -162,33 +166,59 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
             cfg['state_class'] = state_class
         client.publish(cfg_topic, json.dumps(cfg), retain=True)
         client.publish(state_topic, json.dumps({'state': value}), retain=True)
-    # Core sensors
-    pub('voltage', 'Voltage', 'voltage', 'V', data['voltage'])
+
+    # Core sensors with caching fallback
+    voltage = data['voltage']
+    if voltage is not None and volt_min_limit <= voltage <= volt_max_limit:
+        last_valid_voltage[index] = voltage
+    elif index in last_valid_voltage:
+        voltage = last_valid_voltage[index]
+
+    current = data['current']
+    if current is not None:
+        last_valid_current[index] = current
+    elif index in last_valid_current:
+        current = last_valid_current[index]
+
+    power = data['power']
+    if power is not None:
+        last_valid_power[index] = power
+    elif index in last_valid_power:
+        power = last_valid_power[index]
+
+    pub('voltage', 'Voltage', 'voltage', 'V', voltage)
+    # SOC logic with caching inside main loop, so just publish value here
     pub('soc', 'SOC', 'battery', '%', data['soc'])
-    pub('current', 'Current', 'current', 'A', data['current'])
-    pub('power', 'Power', 'power', 'W', data['power'])
-    # Cycle count
+    pub('current', 'Current', 'current', 'A', current)
+    pub('power', 'Power', 'power', 'W', power)
+
+    # Cycle count with caching fallback
     cycle = data['cycle']
     if isinstance(cycle, int):
         last_valid_cycle_count[index] = cycle
         pub('cycle', 'Cycle Count', None, None, cycle, state_class='total_increasing')
     elif index in last_valid_cycle_count:
         pub('cycle', 'Cycle Count', None, None, last_valid_cycle_count[index], state_class='total_increasing')
+
     # Cell voltages
-    for i, v in enumerate(data['cells'], start=1):
-        cell_id = f'{i:02}' if zero_pad_cells else str(i)
-        pub(f'cell_{cell_id}', f'Cell {cell_id}', 'voltage', 'mV', v)
-    # Temperatures
+    if data['cells']:
+        for i, v in enumerate(data['cells'], start=1):
+            cell_id = f'{i:02}' if zero_pad_cells else str(i)
+            pub(f'cell_{cell_id}', f'Cell {cell_id}', 'voltage', 'mV', v)
+
+    # Temperatures with spike filtering and caching
     if data['temps']:
         last_temps = last_valid_temps.get(index, [])
         valid_temps = filter_temperature_spikes(data['temps'], last_temps)
         last_valid_temps[index] = valid_temps
         for i, t in enumerate(valid_temps, start=1):
             pub(f'temp_{i}', f'Temp {i}', 'temperature', '°C', t)
-    # Extra temperatures
+
+    # Extra temperatures MOS and ENV with caching and delta filter
     last_mos, last_env = last_valid_extra.get(index, (None, None))
     def within_delta(new, old, limit=10):
         return old is None or abs(new - old) <= limit
+
     if mos_temp is not None and within_delta(mos_temp, last_mos):
         last_mos = mos_temp
         pub('temp_mos', 'T MOS', 'temperature', '°C', mos_temp)
@@ -234,7 +264,7 @@ def publish_summary_sensors(client, soc_avg, volt_avg, current_sum, power_sum, m
     pub('current_total', 'Total Current', 'current', 'A', round(current_sum, 2), state_class='measurement')
     pub('power_total', 'Total Power', 'power', 'W', round(power_sum, 2), state_class='measurement')
 
-
+# --- Main execution ---
 if __name__ == '__main__':
     config = load_config()
     gateway = ModbusGateway(config)
@@ -287,12 +317,11 @@ if __name__ == '__main__':
         time.sleep(read_timeout)
         try:
             gateway.open()
-            valid_soc_list = []
-            valid_voltage_list = []
+
+            # For collecting valid values per this loop for extra temps
             valid_mos_list = []
             valid_env_list = []
-            total_current = 0.0
-            total_power = 0.0
+
             for i in range(1, num_batt + 1):
                 if i > 1:
                     time.sleep(next_battery_delay)
@@ -338,20 +367,14 @@ if __name__ == '__main__':
                 if data['current'] is None:
                     continue
 
+                # Cache last valid voltage/current/power per battery
+                last_valid_voltage[i] = data['voltage']
+                last_valid_current[i] = data['current']
+                last_valid_power[i] = data['power']
+
                 # SOC logic with caching last valid value
                 if data['soc'] is not None and 0 <= data['soc'] <= 100:
                     last_valid_soc[i] = data['soc']
-                    valid_soc_list.append(data['soc'])
-                else:
-                    if i in last_valid_soc:
-                        valid_soc_list.append(last_valid_soc[i])
-                    else:
-                        # No valid SOC known yet, skip adding this battery's SOC
-                        pass
-
-                valid_voltage_list.append(data['voltage'])
-                total_current += data['current']
-                total_power += data['power']
 
                 # Print battery info
                 print(f"Battery {i} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
@@ -370,13 +393,16 @@ if __name__ == '__main__':
                 # Publish individual battery sensors
                 publish_sensors(client, i, data, mos_t, env_t, battery_model, zero_pad_cells)
 
+            # --- Use cached last valid values for averages ---
+            avg_soc = round(sum(last_valid_soc.values()) / len(last_valid_soc), 1) if last_valid_soc else None
+            avg_voltage = round(sum(last_valid_voltage.values()) / len(last_valid_voltage), 2) if last_valid_voltage else None
+            avg_mos = round(sum(valid_mos_list) / len(valid_mos_list), 1) if valid_mos_list else None
+            avg_env = round(sum(valid_env_list) / len(valid_env_list), 1) if valid_env_list else None
+            total_current = sum(last_valid_current.values()) if last_valid_current else 0.0
+            total_power = sum(last_valid_power.values()) if last_valid_power else 0.0
+
             # Publish summary sensors for all batteries
-            if valid_soc_list:
-                avg_soc = round(sum(valid_soc_list) / len(valid_soc_list), 1)
-                avg_voltage = round(sum(valid_voltage_list) / len(valid_voltage_list), 2) if valid_voltage_list else None
-                avg_mos = round(sum(valid_mos_list) / len(valid_mos_list), 1) if valid_mos_list else None
-                avg_env = round(sum(valid_env_list) / len(valid_env_list), 1) if valid_env_list else None
-                publish_summary_sensors(client, avg_soc, avg_voltage, total_current, total_power, avg_mos, avg_env)
+            publish_summary_sensors(client, avg_soc, avg_voltage, total_current, total_power, avg_mos, avg_env)
 
             gateway.close()
 
