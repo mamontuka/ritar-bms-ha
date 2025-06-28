@@ -28,7 +28,7 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9 - MAJOR UPDATE. successfuly reworked protocol.py, reworked querries, reworked logic structures, fuses for prevent publication into MQTT/RecorderDB wrong or missreaded values, default read_timeout reduced to 10 seconds for better and fast response. Can work in realtime response with read_timeout 1 second (require more CPU resources). Ritar ESS logic device prepared for registers write functional in future releases.</br>\
+>UPDATE 1.9 - MAJOR UPDATE. successfuly reworked protocol.py, reworked querries, reworked logic structures, fuses for prevent publication into MQTT/RecorderDB wrong or missreaded values, default read_timeout reduced to 10 seconds for better and fast response (set in config 10sec or less, if you see issues in addon log). Can work in realtime response with read_timeout 1 second (require more CPU resources). Ritar ESS logic device prepared for registers write functional in future releases. Zero DIP numbered battery no longer supported due protocol and modbus limitations, maximum amount of battery units - 15 at now. </br>\
 UPDATE 1.8.12 - fixes </br>\
 UPDATE 1.8.10 - added new MQTT device - **"Ritar ESS"**, what contain summary SOC, average batteries voltage, average MOS and environment temperatures, summary current and power sensors, for all present battery units. Several small fixes. Logic and parsing improvements, hotfixes. </br>\
 UPDATE 1.8.8 - reworked modbus_gateway.py for compability with my brand new [**Unified Modbus BMS debugger/commandline tool**](https://github.com/mamontuka/ritar-bms-ha/tree/main/Modbus_BMS_Debugger), for development purposes and future releases. </br>\
