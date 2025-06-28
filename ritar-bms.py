@@ -114,7 +114,7 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         'cells': None,
         'temps': None
     }
-    # Block voltage, SOC, current, cycles
+
     if valid_len(block_buf, 37):
         hb = binascii.hexlify(block_buf).decode()
         cur_raw = int(hb[6:10], 16)
@@ -125,7 +125,25 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         soc = round(int(hb[14:18], 16) / 10, 1)
         cycle = int(hb[34:38], 16)
         power = round(current * voltage, 2)
+
+        # === hard skip rules ===
+        if not (volt_min_limit <= voltage <= volt_max_limit):
+            print(f"[WARN] Battery {index} skipped due to invalid voltage: {voltage}")
+            return None
+        if not (0 <= soc <= 100):
+            print(f"[WARN] Battery {index} skipped due to invalid SOC: {soc}")
+            return None
+        if abs(current) > 150:
+            print(f"[WARN] Battery {index} skipped due to current spike: {current}")
+            return None
+        if abs(power) > 8000:
+            print(f"[WARN] Battery {index} skipped due to power anomaly: {power}")
+            return None
+
         result.update({'current': current, 'voltage': voltage, 'soc': soc, 'cycle': cycle, 'power': power})
+    else:
+        return None
+
     # Cell voltages
     if valid_len(cells_buf, 37) and cells_buf[0] == index:
         hv = binascii.hexlify(cells_buf).decode()
@@ -133,12 +151,15 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
         if len([v for v in filtered if v is not None]) >= 8:
             result['cells'] = filtered
-    # Temperature list
+
+    # Temperatures
     if valid_len(temp_buf, 13):
         hx = binascii.hexlify(temp_buf).decode()
         temps = hex_to_temperature(hx)
         result['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
+
     return result
+
 
 # --- MQTT sensor publisher ---
 def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
@@ -187,12 +208,10 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
         power = last_valid_power[index]
 
     pub('voltage', 'Voltage', 'voltage', 'V', voltage)
-    # SOC logic with caching inside main loop, so just publish value here
     pub('soc', 'SOC', 'battery', '%', data['soc'])
     pub('current', 'Current', 'current', 'A', current)
     pub('power', 'Power', 'power', 'W', power)
 
-    # Cycle count with caching fallback
     cycle = data['cycle']
     if isinstance(cycle, int):
         last_valid_cycle_count[index] = cycle
@@ -214,7 +233,6 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
         for i, t in enumerate(valid_temps, start=1):
             pub(f'temp_{i}', f'Temp {i}', 'temperature', '°C', t)
 
-    # Extra temperatures MOS and ENV with caching and delta filter
     last_mos, last_env = last_valid_extra.get(index, (None, None))
     def within_delta(new, old, limit=10):
         return old is None or abs(new - old) <= limit
@@ -264,64 +282,61 @@ def publish_summary_sensors(client, soc_avg, volt_avg, current_sum, power_sum, m
     pub('current_total', 'Total Current', 'current', 'A', round(current_sum, 2), state_class='measurement')
     pub('power_total', 'Total Power', 'power', 'W', round(power_sum, 2), state_class='measurement')
 
-# --- New: per-battery scoped processing function ---
+# --- Per-battery scoped processing ---
 def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queries_delay):
     q = queries[index]
 
-    # Request block voltage
     time.sleep(queries_delay)
-    gateway.send(q['block_voltage'])
-    bv = gateway.recv(37)
-    if not valid_len(bv, 37):
+    gateway.send(q['get_block_voltage'])
+    try:
+        bv = gateway.recv(37)
+    except Exception as e:
+        print(f"[WARN] Battery {index} block voltage read error: {e}")
         bv = None
 
-    # Request cell voltages
     time.sleep(queries_delay)
-    gateway.send(q['cells_voltage'])
-    cv = gateway.recv(37)
-    if not valid_len(cv, 37):
+    gateway.send(q['get_cells_voltage'])
+    try:
+        cv = gateway.recv(37)
+    except Exception as e:
+        print(f"[WARN] Battery {index} cell voltage read error: {e}")
         cv = None
 
-    # Request temperature
     time.sleep(queries_delay)
-    gateway.send(q['temperature'])
-    tv = gateway.recv(13)
-    if not valid_len(tv, 13):
+    gateway.send(q['get_temperature'])
+    try:
+        tv = gateway.recv(13)
+    except Exception as e:
+        print(f"[WARN] Battery {index} temperature read error: {e}")
         tv = None
 
-    # Request extra temperature only if temp is valid
     et = None
     if tv:
         time.sleep(queries_delay)
-        gateway.send(q['extra_temperature'])
-        et = gateway.recv(25)
-        if not valid_len(et, 25):
+        gateway.send(q['get_extra_temperature'])
+        try:
+            et = gateway.recv(25)
+        except Exception as e:
+            print(f"[WARN] Battery {index} extra temperature read error: {e}")
             et = None
 
-    # === Process and validate battery data ===
     data = process_battery_data(index, bv, cv, tv)
+    if data is None:
+        print(f"[WARN] Battery {index} skipped due to invalid data")
+        print("-" * 112)
+        return None
+
     mos_t, env_t = process_extra_temperature(et)
 
-    # --- Validate voltage and current before caching ---
-    if data['voltage'] is None or not (volt_min_limit <= data['voltage'] <= volt_max_limit):
-        print(f"[WARN] Battery {index} voltage invalid: {data['voltage']}")
-        return None
-    if data['current'] is None:
-        print(f"[WARN] Battery {index} current invalid")
-        return None
-
-    # Cache only valid data
     last_valid_voltage[index] = data['voltage']
     last_valid_current[index] = data['current']
     last_valid_power[index] = data['power']
 
     if data['soc'] is not None and 0 <= data['soc'] <= 100:
         last_valid_soc[index] = data['soc']
-
     if isinstance(data['cycle'], int):
         last_valid_cycle_count[index] = data['cycle']
 
-    # Print to console
     print(f"Battery {index} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
     if data['cells']:
         print(f"Battery {index} Cells: {', '.join(str(v) for v in data['cells'])}")
@@ -329,10 +344,8 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
         print(f"Battery {index} Temps: {', '.join(str(t) for t in data['temps'])}°C")
     if mos_t is not None and env_t is not None:
         print(f"Battery {index} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
-
     print("-" * 112)
 
-    # Publish data to MQTT
     publish_sensors(client, index, data, mos_t, env_t, model, zero_pad_cells)
 
     return mos_t, env_t
@@ -342,7 +355,7 @@ if __name__ == '__main__':
     config = load_config()
     gateway = ModbusGateway(config)
     battery_model = config.get('battery_model', 'BAT-5KWH-51.2V')
-    read_timeout = config.get('read_timeout', 15)
+    read_timeout = config.get('read_timeout', 10)
     zero_pad_cells = config.get('zero_pad_cells', False)
     queries_delay, next_battery_delay = validate_delay(config)
 
@@ -366,58 +379,79 @@ if __name__ == '__main__':
         print(f"  IP   : {config['rs485gate_ip']}")
         print(f"  Port : {config['rs485gate_port']}")
     else:
-        print(f"  Device: {config['serial_port']}")
-        print(f"  Baud  : {config.get('serial_baudrate', 9600)}")
-    print(f"Read Timeout    : {read_timeout}s")
+        print(f"  Serial Port : {config['serial_port']}")
+        print(f"  Baudrate    : {config.get('serial_baudrate', 9600)}")
+    print(f"Read Timeout    : {read_timeout}s (Default: 10s)")
     print(f"Queries Delay   : {queries_delay}s")
     print(f"Next Bat. Delay : {next_battery_delay}s")
     print(f"Zero Pad Cells  : {zero_pad_cells}")
     print("-" * 112)
 
-    num_batt = config.get('num_batteries', 1)
+    # Open gateway connection
+    try:
+        gateway.open()
+    except Exception as e:
+        print(f"[ERROR] Cannot open gateway: {e}")
+        sys.exit(1)
+
+    num_batteries = config.get('num_batteries', 1)
     queries = {
-        i: {
-            'block_voltage': getattr(protocol, f'bat_{i}_get_block_voltage'),
-            'cells_voltage': getattr(protocol, f'bat_{i}_get_cells_voltage'),
-            'temperature': getattr(protocol, f'bat_{i}_get_temperature'),
-            'extra_temperature': getattr(protocol, f'bat_{i}_get_extra_temperature')
-        }
-        for i in range(1, num_batt + 1)
+        i: protocol.get_all_queries_for_battery(i)
+        for i in range(1, num_batteries + 1)
     }
 
     # Main loop
-    while True:
-        time.sleep(read_timeout)
-        try:
-            gateway.open()
+    try:
+        while True:
+            time.sleep(read_timeout)
 
-            # For collecting valid values per this loop for extra temps
-            valid_mos_list = []
-            valid_env_list = []
+            # === Reconnect workaround ===
+            try:
+                gateway.close()
+                time.sleep(0.2)
+                gateway.open()
+            except Exception as e:
+                print(f"[ERROR] Failed to reopen gateway: {e}")
+                continue
 
-            for i in range(1, num_batt + 1):
+            sum_soc = 0.0
+            sum_voltage = 0.0
+            sum_current = 0.0
+            sum_power = 0.0
+            sum_mos = 0.0
+            sum_env = 0.0
+            mos_count = 0
+            env_count = 0
+
+            for i in range(1, num_batteries + 1):
                 if i > 1:
                     time.sleep(next_battery_delay)
 
-                result = handle_battery(client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay)
-                if result:
-                    mos_t, env_t = result
-                    if mos_t is not None:
-                        valid_mos_list.append(mos_t)
-                    if env_t is not None:
-                        valid_env_list.append(env_t)
+                mos_t, env_t = handle_battery(client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay) or (None, None)
 
-            # --- Use cached last valid values for averages ---
-            avg_soc = round(sum(last_valid_soc.values()) / len(last_valid_soc), 1) if last_valid_soc else None
-            avg_voltage = round(sum(last_valid_voltage.values()) / len(last_valid_voltage), 2) if last_valid_voltage else None
-            avg_mos = round(sum(valid_mos_list) / len(valid_mos_list), 1) if valid_mos_list else None
-            avg_env = round(sum(valid_env_list) / len(valid_env_list), 1) if valid_env_list else None
-            total_current = round(sum(last_valid_current.values()), 2) if last_valid_current else 0.0
-            total_power = round(sum(last_valid_power.values()), 2) if last_valid_power else 0.0
+                if i in last_valid_soc:
+                    sum_soc += last_valid_soc[i]
+                if i in last_valid_voltage:
+                    sum_voltage += last_valid_voltage[i]
+                if i in last_valid_current:
+                    sum_current += last_valid_current[i]
+                if i in last_valid_power:
+                    sum_power += last_valid_power[i]
+                if mos_t is not None:
+                    sum_mos += mos_t
+                    mos_count += 1
+                if env_t is not None:
+                    sum_env += env_t
+                    env_count += 1
 
-            publish_summary_sensors(client, avg_soc, avg_voltage, total_current, total_power, avg_mos, avg_env)
+            soc_avg = round(sum_soc / num_batteries, 1) if num_batteries else None
+            volt_avg = round(sum_voltage / num_batteries, 2) if num_batteries else None
+            mos_avg = round(sum_mos / mos_count, 1) if mos_count else None
+            env_avg = round(sum_env / env_count, 1) if env_count else None
 
-        except Exception as e:
-            print(f"[ERROR] Exception in main loop: {e}")
-        finally:
-            gateway.close()
+            publish_summary_sensors(client, soc_avg, volt_avg, sum_current, sum_power, mos_avg, env_avg)
+
+    except Exception as e:
+        print(f"[ERROR] Exception in main loop: {e}")
+    finally:
+        gateway.close()
