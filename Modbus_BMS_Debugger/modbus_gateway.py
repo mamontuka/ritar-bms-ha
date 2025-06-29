@@ -90,7 +90,7 @@ class ModbusGateway:
         return [int.from_bytes(data[i:i+2], 'big') for i in range(0, byte_count, 2)]
 
     def write_register(self, address, value):
-        function_code = 0x06
+        function_code = 0x10
         payload = struct.pack('>B B H H', self.slave, function_code, address, value)
         crc = modbus_crc16(payload)
         frame = payload + crc
