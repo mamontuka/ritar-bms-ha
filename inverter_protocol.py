@@ -52,6 +52,28 @@ def build_write_multiple_registers(slave: int, register: int, values: list[int])
     full_frame = bytes(frame) + crc
     return full_frame
 
+def read_all_inverter_protocols(client, gateway, battery_ids):
+    def read_inverter_protocol(bat_id):
+        try:
+            query = build_read_query(bat_id, REG_INVERTER_PROTOCOL, 1)
+            gateway.send(query)
+            resp = gateway.recv(7)
+            if resp and len(resp) == 7 and resp[1] == FUNC_READ_HOLDING_REGS:
+                return int.from_bytes(resp[3:5], 'big')
+        except Exception as e:
+            print(f"[WARN] Read inverter protocol failed for battery {bat_id}: {e}")
+        return None
+
+    results = []
+    for bat in battery_ids:
+        val = read_inverter_protocol(bat)
+        if val is not None:
+            results.append((bat, val, INVERTER_PROTOCOLS.get(val, "Unknown")))
+        else:
+            results.append((bat, None, "No protocol read"))
+        time.sleep(0.5)
+    return results
+
 def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
     global pause_polling_until
     topic_cfg = "homeassistant/select/ritar_ess/inverter_protocol/config"
@@ -124,7 +146,7 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
             client.publish(topic_state, json.dumps({"state": INVERTER_PROTOCOLS.get(common, "Unknown")}), retain=True)
         else:
             print(".")
-            print("Mixed inverter protocols detected among batteries !!! SET INVERTER PROTOCOL IN MQTT **RITAR ESS** DEVICE !!!")
+            print("MIXED !!! SET INVERTER PROTOCOL IN MQTT **RITAR ESS** DEVICE !!!")
             print(".")
             client.publish(topic_state, json.dumps({"state": "Unknown"}), retain=True)
     else:
