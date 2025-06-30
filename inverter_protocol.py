@@ -123,7 +123,6 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
     }
 
     print("Ritar ESS ..")
-    print(".")
     client.publish(topic_cfg, json.dumps(cfg), retain=True)
 
     types = []
