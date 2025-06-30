@@ -400,6 +400,13 @@ if __name__ == '__main__':
     # Inverter protocol
     battery_ids = list(range(1, num_batteries + 1))
 
+    refresh_inverter_protocol = inverter_protocol.publish_inverter_protocol(
+        client,
+        gateway,
+        battery_ids,
+        on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
+    )
+
     print("\nRitar ESS .. Reading inverter protocol from each battery..")
 
     # Read all inverter protocols using the new function
