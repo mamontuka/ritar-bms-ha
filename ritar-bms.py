@@ -11,6 +11,7 @@ import warnings
 import paho.mqtt.client as mqtt
 import protocol
 import inverter_protocol
+import console_info
 from modbus_gateway import ModbusGateway
 
 # === Suppress deprecation warnings ===
@@ -163,7 +164,6 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
         result['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
 
     return result
-
 
 # --- MQTT sensor publisher ---
 def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
@@ -326,8 +326,9 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
 
     data = process_battery_data(index, bv, cv, tv)
     if data is None:
-        print(f"[WARN] Battery {index} skipped due to invalid data")
-        print("-" * 112)
+        if console_output_enabled:
+            print(f"[WARN] Battery {index} skipped due to invalid data")
+            print("-" * 112)
         return None
 
     mos_t, env_t = process_extra_temperature(et)
@@ -341,14 +342,15 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
     if isinstance(data['cycle'], int):
         last_valid_cycle_count[index] = data['cycle']
 
-    print(f"Battery {index} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
-    if data['cells']:
-        print(f"Battery {index} Cells: {', '.join(str(v) for v in data['cells'])}")
-    if data['temps']:
-        print(f"Battery {index} Temps: {', '.join(str(t) for t in data['temps'])}°C")
-    if mos_t is not None and env_t is not None:
-        print(f"Battery {index} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
-    print("-" * 112)
+    if console_output_enabled:
+        print(f"Battery {index} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
+        if data['cells']:
+            print(f"Battery {index} Cells: {', '.join(str(v) for v in data['cells'])}")
+        if data['temps']:
+            print(f"Battery {index} Temps: {', '.join(str(t) for t in data['temps'])}°C")
+        if mos_t is not None and env_t is not None:
+            print(f"Battery {index} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
+        print("-" * 112)
 
     publish_sensors(client, index, data, mos_t, env_t, model, zero_pad_cells)
 
@@ -362,7 +364,8 @@ if __name__ == '__main__':
     read_timeout = config.get('read_timeout', 10)
     zero_pad_cells = config.get('zero_pad_cells', False)
     queries_delay, next_battery_delay = validate_delay(config)
-
+    console_output_enabled = config.get('console_output_enabled', False)
+    
     # MQTT setup
     client = mqtt.Client(client_id='ritar_bms', protocol=mqtt.MQTTv311)
     client.username_pw_set(
@@ -378,18 +381,8 @@ if __name__ == '__main__':
     client.loop_start()
 
     # Print configuration
-    print(f"Connection Type: {gateway.type.title()}")
-    if gateway.type == 'ethernet':
-        print(f"  IP   : {config['rs485gate_ip']}")
-        print(f"  Port : {config['rs485gate_port']}")
-    else:
-        print(f"  Serial Port : {config['serial_port']}")
-        print(f"  Baudrate    : {config.get('serial_baudrate', 9600)}")
-    print(f"Read Timeout    : {read_timeout}s (Default: 10s)")
-    print(f"Queries Delay   : {queries_delay}s")
-    print(f"Next Bat. Delay : {next_battery_delay}s")
-    print(f"Zero Pad Cells  : {zero_pad_cells}")
-    print("-" * 112)
+    console_info.print_config_table(config)
+    console_info.print_inverter_protocols_table(inverter_protocol.INVERTER_PROTOCOLS)
 
     # Open gateway connection
     try:
@@ -406,17 +399,21 @@ if __name__ == '__main__':
 
     # Inverter protocol
     battery_ids = list(range(1, num_batteries + 1))
-    refresh_inverter_protocol = inverter_protocol.publish_inverter_protocol(
-        client, gateway, battery_ids,
-        on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
-    )
-    print("-" * 112)
 
+    print("\nRitar ESS .. Reading inverter protocol from each battery..")
+
+    # Read all inverter protocols using the new function
+    protocols_list = inverter_protocol.read_all_inverter_protocols(client, gateway, battery_ids)
+
+    # Print the protocols in a pretty table
+    console_info.print_inverter_protocols_table_batteries(protocols_list)
+    print("-" * 112)
     
     # Main loop
     try:
         while True:
             if time.time() < pause_polling_until:
+                time.sleep(0.1)
                 continue
             time.sleep(read_timeout)
 
