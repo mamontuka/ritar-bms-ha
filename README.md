@@ -28,6 +28,28 @@ Instalation : </br>\
 </br>
 </br>
 
+>UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Supported by Ritar BMS inverters protocols listed below: </br>
+
+    0: "RITAR_RS485 (RITARV1_8)",
+    1: "DEYE_RS485 (Deye BMS Protocol 12), PLY(DEYE,SMK,FIRMAN,Hollandia)",
+    2: "GROWATT_RS485",
+    3: "VOLTRONIC_RS485, LIB05(VOLTRONIC,XUNZEL,TESLA,GSB SOLAR,PCE)",
+    4: "UPOWER_RS485",
+    5: "VERTIV_RS485",
+    6: "ELTEK_RS485",
+    7: "RITAR_MODBUSV1_9_RS485",
+    8: "VICTRON_CAN",
+    9: "RITAR_CAN",
+    10: "SMA_CAN (Deye BMS Protocol 00)",
+    11: "MEGAREVO_CAN",
+    12: "TBB_CAN",
+    13: "SOLIS_CAN",
+    14: "INHENERGY_RS485",
+    15: "MUST_CAN",
+    16: "PYON_CAN",
+    17: "LUXPOWERTEK_RS485",
+    18: "PHOCOS_RS485",
+
 >UPDATE 1.9 - MAJOR UPDATE. successfuly reworked protocol.py, reworked querries, reworked logic structures, fuses for prevent publication into MQTT/RecorderDB wrong or missreaded values, default read_timeout reduced to 10 seconds for better and fast response (set in config 10sec or less, if you see issues in addon log). Can work in realtime response with read_timeout 1 second (require more CPU resources). Ritar ESS logic device prepared for registers write functional in future releases. Zero DIP numbered battery no longer supported due protocol and modbus limitations, maximum amount of battery units - 15 at now. </br>\
 UPDATE 1.8.12 - fixes </br>\
 UPDATE 1.8.10 - added new MQTT device - **"Ritar ESS"**, what contain summary SOC, average batteries voltage, average MOS and environment temperatures, summary current and power sensors, for all present battery units. Several small fixes. Logic and parsing improvements, hotfixes. </br>\
