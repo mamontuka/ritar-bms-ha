@@ -407,8 +407,6 @@ if __name__ == '__main__':
         on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
     )
 
-    print("\nRitar ESS .. Reading inverter protocol from each battery..")
-
     # Read all inverter protocols using the new function
     protocols_list = inverter_protocol.read_all_inverter_protocols(client, gateway, battery_ids)
 
