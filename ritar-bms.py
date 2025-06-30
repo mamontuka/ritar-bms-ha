@@ -10,10 +10,14 @@ import json
 import warnings
 import paho.mqtt.client as mqtt
 import protocol
+import inverter_protocol
 from modbus_gateway import ModbusGateway
 
 # === Suppress deprecation warnings ===
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+
+# --- Global pause flag ---
+pause_polling_until = 0
 
 # --- Static limits ---
 cell_min_limit = 2450
@@ -400,9 +404,20 @@ if __name__ == '__main__':
         for i in range(1, num_batteries + 1)
     }
 
+    # Inverter protocol
+    battery_ids = list(range(1, num_batteries + 1))
+    refresh_inverter_protocol = inverter_protocol.publish_inverter_protocol(
+        client, gateway, battery_ids,
+        on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
+    )
+    print("-" * 112)
+
+    
     # Main loop
     try:
         while True:
+            if time.time() < pause_polling_until:
+                continue
             time.sleep(read_timeout)
 
             # === Reconnect workaround ===
