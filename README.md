@@ -28,7 +28,7 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Supported by Ritar BMS inverters protocols listed below: </br>
+>UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Inverter protocols, supported by Ritar BMS listed below: </br>
 
     0: "RITAR_RS485 (RITARV1_8)",
     1: "DEYE_RS485 (Deye BMS Protocol 12), PLY(DEYE,SMK,FIRMAN,Hollandia)",
