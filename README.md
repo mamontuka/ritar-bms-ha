@@ -23,10 +23,12 @@ Supported **Ritar Power** 5, 10, 15KWH models, and maybe other, also have inform
 Instalation : </br>\
 1 - Add this repository to addons (three dots) - https://github.com/mamontuka/ritar-bms-ha </br>
 2 - Install this addon </br>
-3 - In addon setings choose RS485 gate IP, port, and how much battery you have (at now supported 1 - 16), MQTT settings </br>
+3 - In addon setings choose RS485 gate IP, port, and how much battery you have (at now supported 1 - 15), MQTT settings </br>
 4 - Take examples, ajust for self </br>
 </br>
 </br>
+
+>UPDATE 1.9.2 - fixes, cleanups, improving addon log output, battery readings output to console now turnable from configuration and by default turned off. </br>
 
 >UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Inverter protocols, supported by Ritar BMS listed below: </br>
 
