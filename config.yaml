@@ -1,6 +1,6 @@
 name: "Ritar BMS"
 description: "Ritar BAT-5KWH-51.2V Battery BMS Logger"
-version: "1.9.1"
+version: "1.9.2"
 slug: "ritar_bms"
 url: "https://github.com/mamontuka/ritar-bms-ha"
 init: false
@@ -23,6 +23,7 @@ options:
   queries_delay: 0.1
   battery_model: BAT-5KWH-51.2V
   num_batteries: 1
+  console_output_enabled: false
   next_battery_delay : 0.5
   read_timeout: 10
   zero_pad_cells: false
@@ -40,6 +41,7 @@ schema:
   queries_delay: float
   battery_model: list(BAT-5KWH-51.2V|BAT-10KWH-51.2V|BAT-15KWH-51.2V)
   num_batteries: int
+  console_output_enabled: bool
   next_battery_delay: float
   read_timeout: int
   zero_pad_cells: bool
