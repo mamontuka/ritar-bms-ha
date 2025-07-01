@@ -133,16 +133,20 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf):
 
         # === hard skip rules ===
         if not (volt_min_limit <= voltage <= volt_max_limit):
-            print(f"[WARN] Battery {index} skipped due to invalid voltage: {voltage}")
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} skipped due to invalid voltage: {voltage}")
             return None
         if not (0 <= soc <= 100):
-            print(f"[WARN] Battery {index} skipped due to invalid SOC: {soc}")
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} skipped due to invalid SOC: {soc}")
             return None
         if abs(current) > 150:
-            print(f"[WARN] Battery {index} skipped due to current spike: {current}")
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} skipped due to current spike: {current}")
             return None
         if abs(power) > 8000:
-            print(f"[WARN] Battery {index} skipped due to power anomaly: {power}")
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} skipped due to power anomaly: {power}")
             return None
 
         result.update({'current': current, 'voltage': voltage, 'soc': soc, 'cycle': cycle, 'power': power})
@@ -295,7 +299,8 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
     try:
         bv = gateway.recv(37)
     except Exception as e:
-        print(f"[WARN] Battery {index} block voltage read error: {e}")
+        if warnings_enabled:
+            print(f"[WARN] Battery {index} block voltage read error: {e}")
         bv = None
 
     time.sleep(queries_delay)
@@ -303,7 +308,8 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
     try:
         cv = gateway.recv(37)
     except Exception as e:
-        print(f"[WARN] Battery {index} cell voltage read error: {e}")
+        if warnings_enabled:
+            print(f"[WARN] Battery {index} cell voltage read error: {e}")
         cv = None
 
     time.sleep(queries_delay)
@@ -311,7 +317,8 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
     try:
         tv = gateway.recv(13)
     except Exception as e:
-        print(f"[WARN] Battery {index} temperature read error: {e}")
+        if warnings_enabled:
+            print(f"[WARN] Battery {index} temperature read error: {e}")
         tv = None
 
     et = None
@@ -321,13 +328,15 @@ def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queri
         try:
             et = gateway.recv(25)
         except Exception as e:
-            print(f"[WARN] Battery {index} extra temperature read error: {e}")
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} extra temperature read error: {e}")
             et = None
 
     data = process_battery_data(index, bv, cv, tv)
     if data is None:
         if console_output_enabled:
-            print(f"[WARN] Battery {index} skipped due to invalid data")
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} skipped due to invalid data")
             print("-" * 112)
         return None
 
@@ -361,10 +370,11 @@ if __name__ == '__main__':
     config = load_config()
     gateway = ModbusGateway(config)
     battery_model = config.get('battery_model', 'BAT-5KWH-51.2V')
-    read_timeout = config.get('read_timeout', 10)
+    read_timeout = config.get('read_timeout', 15)
     zero_pad_cells = config.get('zero_pad_cells', False)
     queries_delay, next_battery_delay = validate_delay(config)
     console_output_enabled = config.get('console_output_enabled', False)
+    warnings_enabled = config.get('warnings_enabled', False)
     
     # MQTT setup
     client = mqtt.Client(client_id='ritar_bms', protocol=mqtt.MQTTv311)
