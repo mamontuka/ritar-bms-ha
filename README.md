@@ -28,11 +28,11 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9.2.4 - **HOTFIX** SETTED BACK DEFAULT read_timeout to **15 SECONDS**, because testing on my setup - 2x5.1 Rittar batteries (SMA protocol) what connected over CAN bus to Deye 6K-SG03LP1-EU (LiBMS protocol 00), show what with less than 15 sec read_timeout - CAUSE LOST CONNECTION WITH INVERTER, change this option by your opinion, but be awared about possible issues ! Different fixes in almost all code parts. Added switch into configuration, for turn on not critical warnings in console output (turned off by default).</br>
+>UPDATE 1.9.2.5 - **HOTFIX** Fixed in Ritar ESS - SOC Average and Voltage Average spikes on graphs. Structure improvements. </br>
 
->UPDATE 1.9.2 - fixes, cleanups, improving addon log output, battery readings output to console now turnable from configuration and by default turned off. </br>
-
->UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Inverter protocols, supported by Ritar BMS listed below: </br>
+>UPDATE 1.9.2.4 - **HOTFIX** SETTED BACK DEFAULT read_timeout to **15 SECONDS**, because testing on my setup - 2x5.1 Rittar batteries (SMA protocol) what connected over CAN bus to Deye 6K-SG03LP1-EU (LiBMS protocol 00), show what with less than 15 sec read_timeout - CAUSE LOST CONNECTION WITH INVERTER, change this option by your opinion, but be awared about possible issues ! Different fixes in almost all code parts. Added switch into configuration, for turn on not critical warnings in console output (turned off by default).</br>\
+UPDATE 1.9.2 - fixes, cleanups, improving addon log output, battery readings output to console now turnable from configuration and by default turned off. </br>\
+UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Inverter protocols, supported by Ritar BMS listed below: </br>
 
     0: "RITAR_RS485 (RITARV1_8)",
     1: "DEYE_RS485 (Deye BMS Protocol 12), PLY(DEYE,SMK,FIRMAN,Hollandia)",
