@@ -1,6 +1,6 @@
 name: "Ritar BMS"
 description: "Ritar BAT-5KWH-51.2V Battery BMS Logger"
-version: "1.9.2"
+version: "1.9.2.4"
 slug: "ritar_bms"
 url: "https://github.com/mamontuka/ritar-bms-ha"
 init: false
@@ -25,8 +25,9 @@ options:
   num_batteries: 1
   console_output_enabled: false
   next_battery_delay : 0.5
-  read_timeout: 10
+  read_timeout: 15
   zero_pad_cells: false
+  warnings_enabled: false
   mqtt_broker: "core-mosquitto"
   mqtt_port: 1883
   mqtt_username: "homeassistant"
@@ -45,6 +46,7 @@ schema:
   next_battery_delay: float
   read_timeout: int
   zero_pad_cells: bool
+  warnings_enabled: bool
   mqtt_broker: str
   mqtt_port: int
   mqtt_username: str
