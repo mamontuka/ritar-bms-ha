@@ -71,19 +71,19 @@ def print_config_table(config, total_width=110):
         groups = [
             ['connection_type', 'rs485gate_ip', 'rs485gate_port'],
             ['mqtt_broker', 'mqtt_port', 'mqtt_username', 'mqtt_password'],
-            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout'],
+            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout', 'warnings_enabled'],
         ]
     elif connection_type == 'serial':
         groups = [
             ['connection_type', 'serial_port', 'serial_baudrate'],
             ['mqtt_broker', 'mqtt_port', 'mqtt_username', 'mqtt_password'],
-            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout'],
+            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout', 'warnings_enabled'],
         ]
     else:
         groups = [
             ['connection_type'],
             ['mqtt_broker', 'mqtt_port', 'mqtt_username', 'mqtt_password'],
-            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout'],
+            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout', 'warnings_enabled'],
         ]
 
     logical_rows = []
