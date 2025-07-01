@@ -87,7 +87,7 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
             resp = gateway.recv(7)
             if resp and len(resp) == 7 and resp[1] == FUNC_READ_HOLDING_REGS:
                 value = int.from_bytes(resp[3:5], 'big')
-                print(f"Current inverter protocol for battery {bat_id}: {INVERTER_PROTOCOLS.get(value, 'Unknown')} ({value})")
+                #print(f"Current inverter protocol for battery {bat_id}: {INVERTER_PROTOCOLS.get(value, 'Unknown')} ({value})")
                 return value
         except Exception as e:
             print(f"[WARN] Read inverter protocol failed for battery {bat_id}: {e}")
@@ -104,8 +104,8 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
             if on_write:
                 on_write()
         except Exception as e:
-            print(f"[WARN] Write inverter protocol failed for battery {bat_id}: {e}")
-
+            print(f"Current inverter protocol for battery {bat_id}: {INVERTER_PROTOCOLS.get(value, 'Unknown')} ({value})")
+            
     cfg = {
         "name": "Inverter Protocol",
         "command_topic": topic_cmd,
@@ -122,12 +122,12 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
         }
     }
 
-    print("Ritar ESS ..")
+    #print("Ritar ESS ..")
     client.publish(topic_cfg, json.dumps(cfg), retain=True)
 
     types = []
-    print("Reading inverter protocol from each battery..")
-    print(".")
+    #print("Reading inverter protocol from each battery..")
+    #print(".")
     for bat in battery_ids:
         val = read_inverter_protocol(bat)
         if val is not None:
@@ -139,13 +139,13 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
     if types:
         common = types[0]
         if all(t == common for t in types):
-            print(".")
-            print(f"Common inverter protocol for all batteries: {INVERTER_PROTOCOLS.get(common, 'Unknown')} ({common})")
-            print(".")
+            #print(".")
+            #print(f"Common inverter protocol for all batteries: {INVERTER_PROTOCOLS.get(common, 'Unknown')} ({common})")
+            #print(".")
             client.publish(topic_state, json.dumps({"state": INVERTER_PROTOCOLS.get(common, "Unknown")}), retain=True)
         else:
             print(".")
-            print("MIXED !!! SET INVERTER PROTOCOL IN MQTT **RITAR ESS** DEVICE !!!")
+            print("Mixed inverter protocols detected among batteries !!! SET INVERTER PROTOCOL IN MQTT **RITAR ESS** DEVICE !!!")
             print(".")
             client.publish(topic_state, json.dumps({"state": "Unknown"}), retain=True)
     else:
@@ -158,8 +158,8 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
         value = INVERTER_PROTOCOLS_REVERSE.get(payload)
         if value is not None:
             print(f"[MQTT] Changing inverter protocol to: {payload} ({value})")
-            # Pause polling for 10 seconds
-            pause_polling_until = time.time() + 10
+            # Pause polling for 5 seconds
+            pause_polling_until = time.time() + 5
             for bat in battery_ids:
                 write_inverter_protocol(bat, value)
                 
