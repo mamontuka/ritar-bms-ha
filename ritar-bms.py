@@ -14,19 +14,28 @@ import inverter_protocol
 import console_info
 from modbus_gateway import ModbusGateway
 
+# Import temperature utils and battery parser
+from temperature_utils import (
+    hex_to_temperature,
+    process_extra_temperature,
+    filter_temperature_spikes,
+    temp_min_limit,
+    temp_max_limit,
+    valid_len
+)
+from battery_parser import process_battery_data
+
 # === Suppress deprecation warnings ===
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 # --- Global pause flag ---
 pause_polling_until = 0
 
-# --- Static limits ---
+# --- Static limits for cells and voltages ---
 cell_min_limit = 2450
 cell_max_limit = 4750
 volt_min_limit = 40.00
 volt_max_limit = 60.00
-temp_min_limit = -20
-temp_max_limit = 55
 
 # --- Persistent cache for fallback values ---
 last_valid_cycle_count = {}
@@ -36,6 +45,11 @@ last_valid_soc = {}
 last_valid_voltage = {}
 last_valid_current = {}
 last_valid_power = {}
+
+# === Added: History buffers for smoothing averages ===
+last_n_socs = []
+last_n_voltages = []
+history_len = 5  # number of last values to keep
 
 # --- Configuration loader ---
 def load_config():
@@ -66,108 +80,17 @@ def validate_delay(cfg):
     nb = to_float(cfg.get('next_battery_delay', '0.5'), 'next_battery_delay')
     return qd, nb
 
-def valid_len(buf, length):
-    return buf is not None and len(buf) == length
-
-# --- Temperature parsers ---
-def hex_to_temperature(hex_str):
-    pairs = [hex_str[i:i+2] for i in range(0, len(hex_str), 2)]
-    data = pairs[3:-2]
-    if len(data) % 2:
-        data = data[:-1]
-    temps = []
-    for i in range(0, len(data), 2):
-        raw = int(data[i] + data[i+1], 16)
-        temps.append(round((raw - 726) * 0.1 + 22.6, 1))
-    return temps
-
-def process_extra_temperature(data):
-    if not valid_len(data, 25):
-        return None, None
-    hx = binascii.hexlify(data).decode()
-    mos_raw = int(hx[6:10], 16)
-    env_raw = int(hx[10:14], 16)
-    mos = round((mos_raw - 726) * 0.1 + 22.6, 1)
-    env = round((env_raw - 726) * 0.1 + 22.6, 1)
-    mos_valid = mos if temp_min_limit <= mos <= temp_max_limit else None
-    env_valid = env if temp_min_limit <= env <= temp_max_limit else None
-    return mos_valid, env_valid
-
-def filter_temperature_spikes(new_vals, last_vals, delta_limit=10):
-    """Filter temperature list values based on max delta compared to last good values."""
-    filtered = []
-    for i, val in enumerate(new_vals):
-        if val is None or not (temp_min_limit <= val <= temp_max_limit):
-            filtered.append(None)
-        elif i < len(last_vals):
-            if abs(val - last_vals[i]) > delta_limit:
-                filtered.append(last_vals[i])  # reuse last known good value
-            else:
-                filtered.append(val)
-        else:
-            filtered.append(val)
-    return filtered
-
-# --- Battery data parser ---
-def process_battery_data(index, block_buf, cells_buf, temp_buf):
-    result = {
-        'voltage': None,
-        'soc': None,
-        'cycle': None,
-        'current': None,
-        'power': None,
-        'cells': None,
-        'temps': None
-    }
-
-    if valid_len(block_buf, 37):
-        hb = binascii.hexlify(block_buf).decode()
-        cur_raw = int(hb[6:10], 16)
-        if cur_raw >= 0x8000:
-            cur_raw -= 0x10000
-        current = round(cur_raw / 100, 2)
-        voltage = round(int(hb[10:14], 16) / 100, 2)
-        soc = round(int(hb[14:18], 16) / 10, 1)
-        cycle = int(hb[34:38], 16)
-        power = round(current * voltage, 2)
-
-        # === hard skip rules ===
-        if not (volt_min_limit <= voltage <= volt_max_limit):
-            if warnings_enabled:
-                print(f"[WARN] Battery {index} skipped due to invalid voltage: {voltage}")
-            return None
-        if not (0 <= soc <= 100):
-            if warnings_enabled:
-                print(f"[WARN] Battery {index} skipped due to invalid SOC: {soc}")
-            return None
-        if abs(current) > 150:
-            if warnings_enabled:
-                print(f"[WARN] Battery {index} skipped due to current spike: {current}")
-            return None
-        if abs(power) > 8000:
-            if warnings_enabled:
-                print(f"[WARN] Battery {index} skipped due to power anomaly: {power}")
-            return None
-
-        result.update({'current': current, 'voltage': voltage, 'soc': soc, 'cycle': cycle, 'power': power})
-    else:
+# === Added: Spike filter helper function ===
+def filter_spikes(new_value, last_values, max_delta):
+    if new_value is None:
         return None
-
-    # Cell voltages
-    if valid_len(cells_buf, 37) and cells_buf[0] == index:
-        hv = binascii.hexlify(cells_buf).decode()
-        raw_cells = [int(hv[6 + 4*i:10 + 4*i], 16) for i in range(16)]
-        filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
-        if len([v for v in filtered if v is not None]) >= 8:
-            result['cells'] = filtered
-
-    # Temperatures
-    if valid_len(temp_buf, 13):
-        hx = binascii.hexlify(temp_buf).decode()
-        temps = hex_to_temperature(hx)
-        result['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
-
-    return result
+    if not last_values:
+        return new_value
+    last_avg = sum(last_values) / len(last_values)
+    if abs(new_value - last_avg) > max_delta:
+        # Spike detected: use last average to smooth spike
+        return last_avg
+    return new_value
 
 # --- MQTT sensor publisher ---
 def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
@@ -441,8 +364,6 @@ if __name__ == '__main__':
                 print(f"[ERROR] Failed to reopen gateway: {e}")
                 continue
 
-            sum_soc = 0.0
-            sum_voltage = 0.0
             sum_current = 0.0
             sum_power = 0.0
             sum_mos = 0.0
@@ -450,20 +371,41 @@ if __name__ == '__main__':
             mos_count = 0
             env_count = 0
 
+            # === Use these for filtered values ===
+            valid_socs = []
+            valid_voltages = []
+
             for i in range(1, num_batteries + 1):
                 if i > 1:
                     time.sleep(next_battery_delay)
 
                 mos_t, env_t = handle_battery(client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay) or (None, None)
 
+                # === Filter SOC with max delta 5% ===
                 if i in last_valid_soc:
-                    sum_soc += last_valid_soc[i]
+                    filtered_soc = filter_spikes(last_valid_soc[i], last_n_socs, max_delta=5)
+                    valid_socs.append(filtered_soc)
+                    if len(last_n_socs) >= history_len:
+                        last_n_socs.pop(0)
+                    last_n_socs.append(filtered_soc)
+
+                # === Filter Voltage with max delta 2.0V ===
                 if i in last_valid_voltage:
-                    sum_voltage += last_valid_voltage[i]
-                if i in last_valid_current:
-                    sum_current += last_valid_current[i]
-                if i in last_valid_power:
-                    sum_power += last_valid_power[i]
+                    filtered_voltage = filter_spikes(last_valid_voltage[i], last_n_voltages, max_delta=2.0)
+                    valid_voltages.append(filtered_voltage)
+                    if len(last_n_voltages) >= history_len:
+                        last_n_voltages.pop(0)
+                    last_n_voltages.append(filtered_voltage)
+
+                # Accumulate sums for total current and power
+                current = last_valid_current.get(i)
+                power = last_valid_power.get(i)
+                if current is not None:
+                    sum_current += current
+                if power is not None:
+                    sum_power += power
+
+                # Accumulate temperatures for averages
                 if mos_t is not None:
                     sum_mos += mos_t
                     mos_count += 1
@@ -471,11 +413,13 @@ if __name__ == '__main__':
                     sum_env += env_t
                     env_count += 1
 
-            soc_avg = round(sum_soc / num_batteries, 1) if num_batteries else None
-            volt_avg = round(sum_voltage / num_batteries, 2) if num_batteries else None
-            mos_avg = round(sum_mos / mos_count, 1) if mos_count else None
-            env_avg = round(sum_env / env_count, 1) if env_count else None
+            # Compute averages
+            soc_avg = round(sum(valid_socs) / len(valid_socs), 1) if valid_socs else None
+            volt_avg = round(sum(valid_voltages) / len(valid_voltages), 2) if valid_voltages else None
+            mos_avg = round(sum_mos / mos_count, 1) if mos_count > 0 else None
+            env_avg = round(sum_env / env_count, 1) if env_count > 0 else None
 
+            # Publish summary sensors
             publish_summary_sensors(client, soc_avg, volt_avg, sum_current, sum_power, mos_avg, env_avg)
 
     except Exception as e:
