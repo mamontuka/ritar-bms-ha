@@ -19,6 +19,8 @@ Supported **Ritar Power** 5, 10, 15KWH models, and maybe other, also have inform
 [Homeassistant community page](https://community.home-assistant.io/t/ritar-bat-5kwh-51-2v-lifepo4-battery/)\
 [Homeassitant entities cards examples](https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples)
 
+[Screenshots](https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples/homeassistant_screenshots)
+
 </br>\
 Instalation : </br>\
 1 - Add this repository to addons (three dots) - https://github.com/mamontuka/ritar-bms-ha </br>
