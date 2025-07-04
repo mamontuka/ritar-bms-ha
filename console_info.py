@@ -177,3 +177,37 @@ def print_inverter_protocols_table_batteries(protocols_list, total_width=106):
         total_width,
         fixed_col_widths=[col1_width, col2_width, col3_width]
     )
+
+def print_presets_table(presets_dict, total_width=106):
+    col1_width = 10  # Battery column
+    col3_width = 7   # Value column (numbers)
+    col2_width = total_width - col1_width - col3_width - 8  # Borders and spacing
+
+    def truncate_text(text, max_len):
+        if len(text) > max_len and max_len > 3:
+            return text[:max_len - 3] + "..."
+        return text
+
+    rows = []
+    battery_ids = list(presets_dict.keys())
+    for i, bat_id in enumerate(battery_ids):
+        values = presets_dict[bat_id]
+        first_row = True
+        for label, value in values.items():
+            truncated_label = truncate_text(label, col2_width)
+            val_str = str(value) if value is not None else "—"
+            if first_row:
+                rows.append([f"Battery {bat_id}", truncated_label, val_str])
+                first_row = False
+            else:
+                rows.append(["", truncated_label, val_str])
+        if i != len(battery_ids) - 1:
+            rows.append(None)  # separator row
+
+    print_table(
+        ["Battery", "EEPROM presets from all batteries...", "Value"],
+        rows,
+        total_width,
+        fixed_col_widths=[col1_width, col2_width, col3_width]
+    )
+    
