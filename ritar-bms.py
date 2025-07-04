@@ -2,20 +2,25 @@
 
 # === Import required modules ===
 import time
-import binascii
 import os
 import sys
-import yaml
 import json
-import warnings
 import paho.mqtt.client as mqtt
-import protocol
-import inverter_protocol
 import console_info
+import modbus_battery
+import modbus_inverter
 from modbus_gateway import ModbusGateway
+from modbus_eeprom import read_and_process_presets
+from constants import (
+    load_config, volt_min_limit, volt_max_limit,
+    last_valid_voltage, last_valid_current, last_valid_power,
+    last_valid_soc, last_valid_cycle_count, last_valid_temps,
+    last_valid_extra, last_n_socs, last_n_voltages,
+    history_len, pause_polling_until
+)
 
-# Import temperature utils and battery parser
-from temperature_utils import (
+# Import temperature and battery parsers
+from parser_temperature import (
     hex_to_temperature,
     process_extra_temperature,
     filter_temperature_spikes,
@@ -23,48 +28,7 @@ from temperature_utils import (
     temp_max_limit,
     valid_len
 )
-from battery_parser import process_battery_data
-
-# === Suppress deprecation warnings ===
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-
-# --- Global pause flag ---
-pause_polling_until = 0
-
-# --- Static limits for cells and voltages ---
-cell_min_limit = 2450
-cell_max_limit = 4750
-volt_min_limit = 40.00
-volt_max_limit = 60.00
-
-# --- Persistent cache for fallback values ---
-last_valid_cycle_count = {}
-last_valid_temps = {}
-last_valid_extra = {}
-last_valid_soc = {}
-last_valid_voltage = {}
-last_valid_current = {}
-last_valid_power = {}
-
-# === Added: History buffers for smoothing averages ===
-last_n_socs = []
-last_n_voltages = []
-history_len = 5  # number of last values to keep
-
-# --- Configuration loader ---
-def load_config():
-    if os.path.exists('/data/options.json'):
-        with open('/data/options.json') as f:
-            cfg = json.load(f)
-    elif os.path.exists('config.yaml'):
-        with open('config.yaml') as f:
-            y = yaml.load(f, Loader=yaml.FullLoader)
-            cfg = y.get('options', {})
-    else:
-        sys.exit("Error: No config file found")
-    if cfg.get('connection_type') not in ('ethernet', 'serial'):
-        sys.exit("Error: connection_type must be 'ethernet' or 'serial'")
-    return cfg
+from parser_battery import process_battery_data
 
 # --- Helpers ---
 def to_float(value, name):
@@ -315,7 +279,7 @@ if __name__ == '__main__':
 
     # Print configuration
     console_info.print_config_table(config)
-    console_info.print_inverter_protocols_table(inverter_protocol.INVERTER_PROTOCOLS)
+    console_info.print_inverter_protocols_table(modbus_inverter.INVERTER_PROTOCOLS)
 
     # Open gateway connection
     try:
@@ -326,14 +290,14 @@ if __name__ == '__main__':
 
     num_batteries = config.get('num_batteries', 1)
     queries = {
-        i: protocol.get_all_queries_for_battery(i)
+        i: modbus_battery.get_all_queries_for_battery(i)
         for i in range(1, num_batteries + 1)
     }
 
     # Inverter protocol
     battery_ids = list(range(1, num_batteries + 1))
 
-    refresh_inverter_protocol = inverter_protocol.publish_inverter_protocol(
+    refresh_inverter_protocol = modbus_inverter.publish_inverter_protocol(
         client,
         gateway,
         battery_ids,
@@ -341,10 +305,14 @@ if __name__ == '__main__':
     )
 
     # Read all inverter protocols using the new function
-    protocols_list = inverter_protocol.read_all_inverter_protocols(client, gateway, battery_ids)
+    protocols_list = modbus_inverter.read_all_inverter_protocols(client, gateway, battery_ids)
 
     # Print the protocols in a pretty table
     console_info.print_inverter_protocols_table_batteries(protocols_list)
+
+    # Read and publish EEPROM presets once at startup
+    print("Please wait for BMS EEPROM reading...")
+    read_and_process_presets(client, gateway, battery_ids)
     print("-" * 112)
     
     # Main loop
@@ -426,3 +394,4 @@ if __name__ == '__main__':
         print(f"[ERROR] Exception in main loop: {e}")
     finally:
         gateway.close()
+    
