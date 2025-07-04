@@ -228,4 +228,3 @@ class ModbusGateway:
 
         print(f"[ERROR] Write multiple registers failed after {max_retries} attempts")
         return False
-    
