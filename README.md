@@ -30,7 +30,7 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9.4.1 - **HOTFIX** Fixed wrong measurement unit for x_pack_full_charge_voltage. Please delete mqtt logic device "Ritar ESS", and restart addon. It will repair wrong graphs.</br>
+>UPDATE 1.9.4.1 - **HOTFIX** Fixed wrong measurement unit for x_pack_full_charge_voltage. Please delete mqtt logic device "Ritar ESS", and restart addon. It will repair wrong graphs. AND/OR delete entity missvalues graphs - [HOWTO](https://github.com/mamontuka/ritar-bms-ha/blob/main/homeassistant_entities_cards_examples/homeassistant_screenshots/delete_entity_missvalues_graphs.jpg)</br>
 
 >UPDATE 1.9.4 - MAJOR UPDATE. Big amount code optimizations, structure reworks, fixes. Added new functional for read BMS EEPROM presets, what show in addon console log most important BMS parameters, in setups with more than one battery - check parameters betwen batteries, publish they into mqtt Ritar ESS device, for more information. In case if parameters different betwen batteries - draw tables for analyse to addon console log, remove EEPROM preset from Ritar ESS. **Keep in mind, what Homeassistant round values by default. Change Voltages round to 2 symbols, eg. 58.40, etc**</br>\
 UPDATE 1.9.2.5 - **HOTFIX** Fixed in Ritar ESS - SOC Average and Voltage Average spikes on graphs. Structure improvements. </br>
