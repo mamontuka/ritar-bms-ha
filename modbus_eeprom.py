@@ -32,7 +32,7 @@ def format_value_and_unit(key, value):
     
     # Apply mV to V conversion ONLY if key starts with "pack_ov_" or "pack_uv_"
     # AND label doesn't contain 'time' or 'delay'
-    if (key_lower.startswith("pack_ov_") or key_lower.startswith("pack_uv_")) and not ("time" in key_lower or "delay" in key_lower):
+    if (key_lower.startswith("pack_ov_") or key_lower.startswith("pack_uv_") or key_lower == "pack_full_charge_voltage") and not ("time" in key_lower or "delay" in key_lower):
         volts = value / 100.0
         unit = "V"  # Override unit to volts
         return volts, unit, device_class  # <-- Return float, NOT formatted string
@@ -66,8 +66,8 @@ def publish_presets_in_ritar_device(client, preset: dict):
         cfg = {
             'name': f"x_{name}",
             'state_topic': state_topic,
-            'unique_id': f"ritar_ess_{suffix}",
-            'object_id': f"ritar_ess_{suffix}",
+            'unique_id': f"ritar_ess_x_{suffix}",
+            'object_id': f"ritar_ess_x_{suffix}",
             'device': device_info,
             'value_template': '{{ value_json.state }}',
         }
