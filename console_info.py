@@ -210,4 +210,3 @@ def print_presets_table(presets_dict, total_width=106):
         total_width,
         fixed_col_widths=[col1_width, col2_width, col3_width]
     )
-    
