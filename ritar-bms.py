@@ -2,7 +2,6 @@
 
 # === Import required modules ===
 import time
-import os
 import sys
 import json
 import paho.mqtt.client as mqtt
@@ -11,171 +10,23 @@ import modbus_battery
 import modbus_inverter
 from modbus_gateway import ModbusGateway
 from modbus_eeprom import read_and_process_presets
+from parser_battery import process_battery_data, filter_spikes
+from mqtt_core import (
+    publish_sensors, publish_summary_sensors,
+    publish_inverter_protocol,
+    publish_presets_in_ritar_device, publish_mqtt_delete
+)
 from constants import (
     load_config, volt_min_limit, volt_max_limit,
     last_valid_voltage, last_valid_current, last_valid_power,
     last_valid_soc, last_valid_cycle_count, last_valid_temps,
     last_valid_extra, last_n_socs, last_n_voltages,
-    history_len, pause_polling_until
+    history_len, pause_polling_until, to_float, validate_delay
 )
-
-# Import temperature and battery parsers
 from parser_temperature import (
-    hex_to_temperature,
     process_extra_temperature,
     filter_temperature_spikes,
-    temp_min_limit,
-    temp_max_limit,
-    valid_len
 )
-from parser_battery import process_battery_data
-
-# --- Helpers ---
-def to_float(value, name):
-    if isinstance(value, str):
-        value = value.replace(',', '.')
-    try:
-        return float(value)
-    except ValueError:
-        sys.exit(f"Error: {name} must be a number, got {value}")
-
-def validate_delay(cfg):
-    qd = to_float(cfg.get('queries_delay', '0.1'), 'queries_delay')
-    nb = to_float(cfg.get('next_battery_delay', '0.5'), 'next_battery_delay')
-    return qd, nb
-
-# === Added: Spike filter helper function ===
-def filter_spikes(new_value, last_values, max_delta):
-    if new_value is None:
-        return None
-    if not last_values:
-        return new_value
-    last_avg = sum(last_values) / len(last_values)
-    if abs(new_value - last_avg) > max_delta:
-        # Spike detected: use last average to smooth spike
-        return last_avg
-    return new_value
-
-# --- MQTT sensor publisher ---
-def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
-    base = f"homeassistant/sensor/ritar_{index}"
-    device_info = {
-        'identifiers': [f"ritar_{index}"],
-        'name': f"Ritar Battery {index}",
-        'model': model,
-        'manufacturer': 'Ritar'
-    }
-    def pub(suffix, name, dev_class, unit, value, state_class=None):
-        cfg_topic = f"{base}/{suffix}/config"
-        state_topic = f"{base}/{suffix}"
-        cfg = {
-            'name': name,
-            'state_topic': state_topic,
-            'unique_id': f"ritar_{index}_{suffix}",
-            'object_id': f"ritar_{index}_{suffix}",
-            'device_class': dev_class,
-            'unit_of_measurement': unit,
-            'value_template': '{{ value_json.state }}',
-            'device': device_info
-        }
-        if state_class:
-            cfg['state_class'] = state_class
-        client.publish(cfg_topic, json.dumps(cfg), retain=True)
-        client.publish(state_topic, json.dumps({'state': value}), retain=True)
-
-    # Core sensors with caching fallback
-    voltage = data['voltage']
-    if voltage is not None and volt_min_limit <= voltage <= volt_max_limit:
-        last_valid_voltage[index] = voltage
-    elif index in last_valid_voltage:
-        voltage = last_valid_voltage[index]
-
-    current = data['current']
-    if current is not None:
-        last_valid_current[index] = current
-    elif index in last_valid_current:
-        current = last_valid_current[index]
-
-    power = data['power']
-    if power is not None:
-        last_valid_power[index] = power
-    elif index in last_valid_power:
-        power = last_valid_power[index]
-
-    pub('voltage', 'Voltage', 'voltage', 'V', voltage)
-    pub('soc', 'SOC', 'battery', '%', data['soc'])
-    pub('current', 'Current', 'current', 'A', current)
-    pub('power', 'Power', 'power', 'W', power)
-
-    cycle = data['cycle']
-    if isinstance(cycle, int):
-        last_valid_cycle_count[index] = cycle
-        pub('cycle', 'Cycle Count', None, None, cycle, state_class='total_increasing')
-    elif index in last_valid_cycle_count:
-        pub('cycle', 'Cycle Count', None, None, last_valid_cycle_count[index], state_class='total_increasing')
-
-    # Cell voltages
-    if data['cells']:
-        for i, v in enumerate(data['cells'], start=1):
-            cell_id = f'{i:02}' if zero_pad_cells else str(i)
-            pub(f'cell_{cell_id}', f'Cell {cell_id}', 'voltage', 'mV', v)
-
-    # Temperatures with spike filtering and caching
-    if data['temps']:
-        last_temps = last_valid_temps.get(index, [])
-        valid_temps = filter_temperature_spikes(data['temps'], last_temps)
-        last_valid_temps[index] = valid_temps
-        for i, t in enumerate(valid_temps, start=1):
-            pub(f'temp_{i}', f'Temp {i}', 'temperature', '°C', t)
-
-    last_mos, last_env = last_valid_extra.get(index, (None, None))
-    def within_delta(new, old, limit=10):
-        return old is None or abs(new - old) <= limit
-
-    if mos_temp is not None and within_delta(mos_temp, last_mos):
-        last_mos = mos_temp
-        pub('temp_mos', 'T MOS', 'temperature', '°C', mos_temp)
-    if env_temp is not None and within_delta(env_temp, last_env):
-        last_env = env_temp
-        pub('temp_env', 'T ENV', 'temperature', '°C', env_temp)
-    last_valid_extra[index] = (last_mos, last_env)
-
-# --- Summary MQTT sensors publisher ---
-def publish_summary_sensors(client, soc_avg, volt_avg, current_sum, power_sum, mos_avg=None, env_avg=None):
-    base = "homeassistant/sensor/ritar_ess"
-    device_info = {
-        'identifiers': ['ritar_ess'],
-        'name': 'Ritar ESS',
-        'model': 'Energy Storage System',
-        'manufacturer': 'Ritar'
-    }
-    def pub(suffix, name, dev_class, unit, value, state_class=None):
-        cfg_topic = f"{base}/{suffix}/config"
-        state_topic = f"{base}/{suffix}"
-        cfg = {
-            'name': name,
-            'state_topic': state_topic,
-            'unique_id': f"ritar_ess_{suffix}",
-            'object_id': f"ritar_ess_{suffix}",
-            'device_class': dev_class,
-            'unit_of_measurement': unit,
-            'value_template': '{{ value_json.state }}',
-            'device': device_info
-        }
-        if state_class:
-            cfg['state_class'] = state_class
-        client.publish(cfg_topic, json.dumps(cfg), retain=True)
-        client.publish(state_topic, json.dumps({'state': value}), retain=True)
-    if soc_avg is not None:
-        pub('soc_avg', 'SOC Average', 'battery', '%', soc_avg, state_class='measurement')
-    if volt_avg is not None:
-        pub('voltage_avg', 'Voltage Average', 'voltage', 'V', float("{:.2f}".format(volt_avg)), state_class='measurement')
-    if mos_avg is not None:
-        pub('mos_avg', 'MOS Temp Average', 'temperature', '°C', round(mos_avg, 1), state_class='measurement')
-    if env_avg is not None:
-        pub('env_avg', 'ENV Temp Average', 'temperature', '°C', round(env_avg, 1), state_class='measurement')
-    pub('current_total', 'Total Current', 'current', 'A', round(current_sum, 2), state_class='measurement')
-    pub('power_total', 'Total Power', 'power', 'W', round(power_sum, 2), state_class='measurement')
 
 # --- Per-battery scoped processing ---
 def handle_battery(client, index, queries, gateway, model, zero_pad_cells, queries_delay):
@@ -297,7 +148,7 @@ if __name__ == '__main__':
     # Inverter protocol
     battery_ids = list(range(1, num_batteries + 1))
 
-    refresh_inverter_protocol = modbus_inverter.publish_inverter_protocol(
+    refresh_inverter_protocol = publish_inverter_protocol(
         client,
         gateway,
         battery_ids,
@@ -394,4 +245,3 @@ if __name__ == '__main__':
         print(f"[ERROR] Exception in main loop: {e}")
     finally:
         gateway.close()
-    
