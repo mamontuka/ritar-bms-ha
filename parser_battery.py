@@ -9,6 +9,19 @@ from parser_temperature import (
     valid_len,
 )
 
+# === Spike filter helper function ===
+def filter_spikes(new_value, last_values, max_delta):
+    if new_value is None:
+        return None
+    if not last_values:
+        return new_value
+    last_avg = sum(last_values) / len(last_values)
+    if abs(new_value - last_avg) > max_delta:
+        # Spike detected: use last average to smooth spike
+        return last_avg
+    return new_value
+
+# === Registers parser ===
 def process_battery_data(index, block_buf, cells_buf, temp_buf, warnings_enabled=False):
     result = {
         'voltage': None,
