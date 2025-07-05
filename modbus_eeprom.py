@@ -1,9 +1,9 @@
 # modbus_eeprom.py
 
 import time
-import json
 from modbus_registers import PRESET_GROUPS, BLOCKED_GROUPS, DANGEROUS_REGISTERS, PRESET_UNITS_DEVICE_CLASSES
 from console_info import print_presets_table
+from mqtt_core import publish_presets_in_ritar_device, publish_mqtt_delete
 
 def build_safe_preset_registers():
     """Flatten and return preset registers excluding blocked/dangerous groups and registers."""
@@ -16,75 +16,6 @@ def build_safe_preset_registers():
                 continue
             safe_registers[key] = reg
     return safe_registers
-
-def get_unit_and_device_class(label: str):
-    label_lower = label.lower()
-    for keyword, (unit, dev_class) in PRESET_UNITS_DEVICE_CLASSES.items():
-        if keyword in label_lower:
-            return unit, dev_class
-    # Defaults
-    return None, None
-
-def format_value_and_unit(key, value):
-    """Format the value and unit based on key prefix and keywords."""
-    unit, device_class = get_unit_and_device_class(key)
-    key_lower = key.lower()
-    
-    # Apply mV to V conversion ONLY if key starts with "pack_ov_" or "pack_uv_"
-    # AND label doesn't contain 'time' or 'delay'
-    if (key_lower.startswith("pack_ov_") or key_lower.startswith("pack_uv_") or key_lower == "pack_full_charge_voltage") and not ("time" in key_lower or "delay" in key_lower):
-        volts = value / 100.0
-        unit = "V"  # Override unit to volts
-        return volts, unit, device_class  # <-- Return float, NOT formatted string
-    
-    # Otherwise, return the raw value as is
-    return value, unit, device_class
-
-def publish_mqtt_delete(client, label_keys):
-    """Delete MQTT preset entities by publishing empty retained config topics."""
-    base = "homeassistant/sensor/ritar_ess"
-    for key in label_keys:
-        key_clean = key.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("%", "pct")
-        topic = f"{base}/x_{key_clean}/config"
-        client.publish(topic, "", retain=True)
-
-def publish_presets_in_ritar_device(client, preset: dict):
-    base = "homeassistant/sensor/ritar_ess"
-    device_info = {
-        'identifiers': ['ritar_ess'],
-        'name': 'Ritar ESS',
-        'model': 'Energy Storage System',
-        'manufacturer': 'Ritar'
-    }
-
-    def pub(suffix, name, value):
-        formatted_value, unit, device_class = format_value_and_unit(name, value)
-    
-        cfg_topic = f"{base}/x_{suffix}/config"
-        state_topic = f"{base}/x_{suffix}"
-    
-        cfg = {
-            'name': f"x_{name}",
-            'state_topic': state_topic,
-            'unique_id': f"ritar_ess_x_{suffix}",
-            'object_id': f"ritar_ess_x_{suffix}",
-            'device': device_info,
-            'value_template': '{{ value_json.state }}',
-        }
-    
-        if unit:
-            cfg['unit_of_measurement'] = unit
-        if device_class:
-            cfg['device_class'] = device_class
-    
-        client.publish(cfg_topic, json.dumps(cfg), retain=True)
-        client.publish(state_topic, json.dumps({'state': formatted_value}), retain=True)  # numeric value!
-
-    for label, value in preset.items():
-        if value is None:
-            continue
-        key = label.lower().replace(" ", "_").replace("(", "").replace(")", "").replace("%", "pct")
-        pub(key, label, value)
 
 def read_and_process_presets(client, gateway, battery_ids):
     preset_registers = build_safe_preset_registers()
