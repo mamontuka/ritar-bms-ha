@@ -12,7 +12,7 @@ from modbus_inverter import (
     INVERTER_PROTOCOLS_REVERSE
 )
 
-from constants import (
+from settings import (
     last_valid_voltage,
     last_valid_current,
     last_valid_power,
@@ -38,6 +38,29 @@ from constants import (
     INVERTER_PROTOCOL_OBJECT_ID,
 )
 from parser_temperature import filter_temperature_spikes
+
+
+# --- Delete only battery cell MQTT topics when zero_pad_cells changes ---
+def delete_battery_cell_topics_on_zeropad_change(client, num_batteries, zero_pad_cells, max_cells=16):
+    """
+    Publishes empty retained messages to delete cell topics that would change format
+    if zero_pad_cells setting changes (e.g., cell_1 <-> cell_01).
+    """
+    for index in range(1, num_batteries + 1):
+        base = BATTERY_BASE_TOPIC_TEMPLATE.format(index=index)
+        for i in range(1, max_cells + 1):
+            # Clean both padded and non-padded versions to ensure full cleanup
+            cell_id_padded = f"{i:02}"
+            cell_id_unpadded = str(i)
+            if zero_pad_cells:
+                # We're about to use padded form → delete unpadded
+                cell_id = cell_id_unpadded
+            else:
+                # We're about to use unpadded form → delete padded
+                cell_id = cell_id_padded
+
+            client.publish(f"{base}/cell_{cell_id}/config", "", retain=True)
+            client.publish(f"{base}/cell_{cell_id}", "", retain=True)
 
 
 # --- Batteries MQTT sensors publisher ---
