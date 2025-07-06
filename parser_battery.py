@@ -1,7 +1,7 @@
 # parser_battery.py
 
 import binascii
-from constants import cell_min_limit, cell_max_limit, volt_min_limit, volt_max_limit
+from settings import cell_min_limit, cell_max_limit, volt_min_limit, volt_max_limit
 from parser_temperature import (
     hex_to_temperature,
     temp_min_limit,
