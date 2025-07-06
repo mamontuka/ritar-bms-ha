@@ -12,16 +12,17 @@ from modbus_gateway import ModbusGateway
 from modbus_eeprom import read_and_process_presets
 from parser_battery import process_battery_data, filter_spikes
 from mqtt_core import (
-    publish_sensors, publish_summary_sensors,
-    publish_inverter_protocol,
-    publish_presets_in_ritar_device, publish_mqtt_delete
+    publish_sensors, publish_summary_sensors, publish_mqtt_delete,
+    publish_inverter_protocol, publish_presets_in_ritar_device,
+    delete_battery_cell_topics_on_zeropad_change
 )
-from constants import (
+from settings import (
     load_config, volt_min_limit, volt_max_limit,
     last_valid_voltage, last_valid_current, last_valid_power,
     last_valid_soc, last_valid_cycle_count, last_valid_temps,
-    last_valid_extra, last_n_socs, last_n_voltages,
-    history_len, pause_polling_until, to_float, validate_delay
+    last_valid_extra, last_n_socs, last_n_voltages, last_n_env,
+    last_n_mos, history_len, pause_polling_until, to_float,
+    validate_delay, has_zeropad_changed, save_zeropad_state
 )
 from parser_temperature import (
     process_extra_temperature,
@@ -164,6 +165,15 @@ if __name__ == '__main__':
     # Read and publish EEPROM presets once at startup
     print("Please wait for BMS EEPROM reading...")
     read_and_process_presets(client, gateway, battery_ids)
+
+    # Clean outdated cell topics affected by zero_pad_cells changes
+    time.sleep(5)
+    if has_zeropad_changed(zero_pad_cells):
+        print("[INFO] zero_pad_cells setting changed — cleaning old cell MQTT topics...")
+        delete_battery_cell_topics_on_zeropad_change(client, num_batteries, zero_pad_cells)
+        save_zeropad_state(zero_pad_cells)
+    
+    # End line
     print("-" * 112)
     
     # Main loop
@@ -185,14 +195,11 @@ if __name__ == '__main__':
 
             sum_current = 0.0
             sum_power = 0.0
-            sum_mos = 0.0
-            sum_env = 0.0
-            mos_count = 0
-            env_count = 0
 
-            # === Use these for filtered values ===
             valid_socs = []
             valid_voltages = []
+            valid_env = []
+            valid_mos = []
 
             for i in range(1, num_batteries + 1):
                 if i > 1:
@@ -200,23 +207,25 @@ if __name__ == '__main__':
 
                 mos_t, env_t = handle_battery(client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay) or (None, None)
 
-                # === Filter SOC with max delta 5% ===
+                # --- SOC Filtering ---
                 if i in last_valid_soc:
                     filtered_soc = filter_spikes(last_valid_soc[i], last_n_socs, max_delta=5)
-                    valid_socs.append(filtered_soc)
-                    if len(last_n_socs) >= history_len:
-                        last_n_socs.pop(0)
-                    last_n_socs.append(filtered_soc)
+                    if filtered_soc is not None:
+                        last_n_socs.append(filtered_soc)
+                        if len(last_n_socs) > history_len:
+                            last_n_socs.pop(0)
+                        valid_socs.append(filtered_soc)
 
-                # === Filter Voltage with max delta 2.0V ===
+                # --- Voltage Filtering ---
                 if i in last_valid_voltage:
                     filtered_voltage = filter_spikes(last_valid_voltage[i], last_n_voltages, max_delta=2.0)
-                    valid_voltages.append(filtered_voltage)
-                    if len(last_n_voltages) >= history_len:
-                        last_n_voltages.pop(0)
-                    last_n_voltages.append(filtered_voltage)
+                    if filtered_voltage is not None:
+                        last_n_voltages.append(filtered_voltage)
+                        if len(last_n_voltages) > history_len:
+                            last_n_voltages.pop(0)
+                        valid_voltages.append(filtered_voltage)
 
-                # Accumulate sums for total current and power
+                # --- Current/Power Accumulation ---
                 current = last_valid_current.get(i)
                 power = last_valid_power.get(i)
                 if current is not None:
@@ -224,21 +233,40 @@ if __name__ == '__main__':
                 if power is not None:
                     sum_power += power
 
-                # Accumulate temperatures for averages
+                # --- MOS Temp Filtering ---
                 if mos_t is not None:
-                    sum_mos += mos_t
-                    mos_count += 1
-                if env_t is not None:
-                    sum_env += env_t
-                    env_count += 1
+                    if i not in last_n_mos:
+                        last_n_mos[i] = []
+                    filtered_mos = filter_spikes(mos_t, last_n_mos[i], max_delta=2.0)
+                    if filtered_mos is not None:
+                        last_n_mos[i].append(filtered_mos)
+                        if len(last_n_mos[i]) > history_len:
+                            last_n_mos[i].pop(0)
+                        valid_mos.append(filtered_mos)
 
-            # Compute averages
+                # --- ENV Temp Filtering ---
+                if env_t is not None:
+                    if i not in last_n_env:
+                        last_n_env[i] = []
+                    filtered_env = filter_spikes(env_t, last_n_env[i], max_delta=2.0)
+                    if filtered_env is not None:
+                        last_n_env[i].append(filtered_env)
+                        if len(last_n_env[i]) > history_len:
+                            last_n_env[i].pop(0)
+                        valid_env.append(filtered_env)
+
+            # --- Averages (or medians) ---
             soc_avg = round(sum(valid_socs) / len(valid_socs), 1) if valid_socs else None
             volt_avg = round(sum(valid_voltages) / len(valid_voltages), 2) if valid_voltages else None
-            mos_avg = round(sum_mos / mos_count, 1) if mos_count > 0 else None
-            env_avg = round(sum_env / env_count, 1) if env_count > 0 else None
+            mos_avg = round(sum(valid_mos) / len(valid_mos), 1) if len(valid_mos) >= num_batteries else None
+            env_avg = round(sum(valid_env) / len(valid_env), 1) if len(valid_env) >= num_batteries else None
 
-            # Publish summary sensors
+            # --- Optional: use median instead of average ---
+            # from statistics import median
+            # mos_avg = round(median(valid_mos), 1) if valid_mos else None
+            # env_avg = round(median(valid_env), 1) if valid_env else None
+
+            # --- Publish summary sensors ---
             publish_summary_sensors(client, soc_avg, volt_avg, sum_current, sum_power, mos_avg, env_avg)
 
     except Exception as e:
