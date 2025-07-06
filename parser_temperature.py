@@ -1,7 +1,7 @@
 # parser_temperature.py
 
 import binascii
-from constants import temp_min_limit, temp_max_limit
+from settings import temp_min_limit, temp_max_limit
 
 def valid_len(buf, length):
     return buf is not None and len(buf) == length
