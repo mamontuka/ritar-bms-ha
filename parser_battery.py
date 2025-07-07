@@ -30,15 +30,13 @@ from main_arrays import (
 
 
 # === Spike filter helper function ===
-def filter_spikes(new_value, last_values, max_delta):
+def filter_spikes(new_value, last_value, max_delta):
     if new_value is None:
         return None
-    if not last_values:
+    if last_value is None:
         return new_value
-    last_avg = sum(last_values) / len(last_values)
-    if abs(new_value - last_avg) > max_delta:
-        # Spike detected: use last average to smooth spike
-        return last_avg
+    if abs(new_value - last_value) > max_delta:
+        return last_value  # smooth spike by holding previous
     return new_value
 
 
@@ -65,7 +63,7 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf, warnings_enabled
         cycle = int(hb[34:38], 16)
         power = round(current * voltage, 2)
 
-        # Hard skip rules
+        # --- Hard Skip Rules ---
         if not (volt_min_limit <= voltage <= volt_max_limit):
             if warnings_enabled:
                 print(f"[WARN] Battery {index} skipped due to invalid voltage: {voltage}")
@@ -83,19 +81,31 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf, warnings_enabled
                 print(f"[WARN] Battery {index} skipped due to power anomaly: {power}")
             return None
 
-        result.update({'current': current, 'voltage': voltage, 'soc': soc, 'cycle': cycle, 'power': power})
+        # --- Spike Filtering ---
+        voltage = filter_spikes(voltage, last_valid_voltage.get(index), max_delta=2.5)
+        cycle = filter_spikes(cycle, last_valid_cycle_count.get(index), max_delta=50)
+
+        # --- Update result ---
+        result.update({
+            'current': current,
+            'voltage': voltage,
+            'soc': soc,
+            'cycle': cycle,
+            'power': power
+        })
+
     else:
         return None
 
-    # Cell voltages
+    # --- Cell voltages ---
     if valid_len(cells_buf, 37) and cells_buf[0] == index:
         hv = binascii.hexlify(cells_buf).decode()
-        raw_cells = [int(hv[6 + 4*i:10 + 4*i], 16) for i in range(16)]
+        raw_cells = [int(hv[6 + 4 * i:10 + 4 * i], 16) for i in range(16)]
         filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
         if len([v for v in filtered if v is not None]) >= 8:
             result['cells'] = filtered
 
-    # Temperatures
+    # --- Temperatures ---
     if valid_len(temp_buf, 13):
         hx = binascii.hexlify(temp_buf).decode()
         temps = hex_to_temperature(hx)
@@ -149,7 +159,7 @@ def handle_battery(
                 print(f"[WARN] Battery {index} extra temperature read error: {e}")
             et = None
 
-    data = process_battery_data(index, bv, cv, tv)
+    data = process_battery_data(index, bv, cv, tv, warnings_enabled=warnings_enabled)
     if data is None:
         if console_output_enabled:
             if warnings_enabled:
@@ -159,6 +169,7 @@ def handle_battery(
 
     mos_t, env_t = process_extra_temperature(et)
 
+    # --- Save validated values ---
     last_valid_voltage[index] = data['voltage']
     last_valid_current[index] = data['current']
     last_valid_power[index] = data['power']
