@@ -1,24 +1,23 @@
 # modbus_eeprom.py
 
 import time
-from modbus_registers import PRESET_GROUPS, BLOCKED_GROUPS, DANGEROUS_REGISTERS, PRESET_UNITS_DEVICE_CLASSES
 from main_console import print_presets_table
 from mqtt_core import publish_presets_in_ritar_device, publish_mqtt_delete
 
-def build_safe_preset_registers():
+def build_safe_preset_registers(modbus_registers):
     """Flatten and return preset registers excluding blocked/dangerous groups and registers."""
     safe_registers = {}
-    for group_name, regs in PRESET_GROUPS.items():
-        if group_name in BLOCKED_GROUPS:
+    for group, regs in modbus_registers.PRESET_GROUPS.items():
+        if group in modbus_registers.BLOCKED_GROUPS:
             continue
         for key, reg in regs.items():
-            if key in DANGEROUS_REGISTERS:
+            if key in modbus_registers.DANGEROUS_REGISTERS:
                 continue
             safe_registers[key] = reg
     return safe_registers
 
-def read_and_process_presets(client, gateway, battery_ids):
-    preset_registers = build_safe_preset_registers()
+def read_and_process_presets(client, gateway, battery_ids, modbus_registers):
+    preset_registers = build_safe_preset_registers(modbus_registers)
     if not preset_registers:
         print("No safe preset registers to read.")
         return
