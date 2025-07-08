@@ -33,7 +33,7 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9.6.5 - Introducing new feature - **United BMS** - this feature give you ability customize Ritar BMS addon. **Or create by self, BMS addon for batteries manufactured by other vendors !** [README](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md)</br>
+>UPDATE 1.9.7 - Introducing new feature - **United BMS** - this feature give you ability customize Ritar BMS addon. **Or create by self, BMS addon for batteries manufactured by other vendors !** [README](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md)</br>
 
 >UPDATE 1.9.6 - Structure rework, code cleanups. Preparing for changing version numeration from "current" to "stable". At this moment, during tests, not found any issues, if you know what works not properly or not how expected - let me know, please. <br> \
 UPDATE 1.9.5.6 - Structure rework for better source code understanding. Fixed properly forgoten config option "zero_pad_cells" - now it works how was expected and switch cell numeration with cleanup in mqtt entities. Improved graphs spikes filtering in Ritar ESS device for multibattery setups. </br>\
