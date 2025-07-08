@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 # === Standard library ===
+import os
 import time
 import sys
 import paho.mqtt.client as mqtt
@@ -8,10 +9,7 @@ import paho.mqtt.client as mqtt
 # === Local modules ===
 import main_console
 import modbus_battery
-import modbus_inverter
 from modbus_gateway import ModbusGateway
-from modbus_eeprom import read_and_process_presets
-from parser_battery import filter_spikes, handle_battery
 
 from mqtt_core import (
     publish_summary_sensors,
@@ -36,13 +34,47 @@ from main_helpers import (
     load_config,
     validate_delay,
     has_zeropad_changed,
-    save_zeropad_state
+    save_zeropad_state,
+    try_import_custom_module
 )
 
 
 # --- Main execution ---
 if __name__ == '__main__':
+    # === Load configuration ===
     config = load_config()
+
+    # === Optional override modules directory ===
+    custom_dir = "/config/united_bms"
+    
+    # Load switches from config (default True if missing)
+    enable_modbus_inverter = config.get('enable_modbus_inverter', True)
+    enable_modbus_eeprom = config.get('enable_modbus_eeprom', True)
+
+    # Dynamic import of override modules
+    main_settings = try_import_custom_module("main_settings", custom_dir)
+    modbus_registers = try_import_custom_module("modbus_registers", custom_dir)
+    parser_battery = try_import_custom_module("parser_battery", custom_dir)
+    parser_temperature = try_import_custom_module("parser_temperature", custom_dir)
+
+    if enable_modbus_inverter:
+        modbus_inverter = try_import_custom_module("modbus_inverter", custom_dir)
+    else:
+        modbus_inverter = None  # Or create a dummy module if needed
+
+    if enable_modbus_eeprom:
+        modbus_eeprom = try_import_custom_module("modbus_eeprom", custom_dir)
+        read_and_process_presets = modbus_eeprom.read_and_process_presets
+    else:
+        modbus_eeprom = None
+        # Provide dummy function to avoid errors if called
+        def read_and_process_presets(*args, **kwargs):
+            print("[INFO] modbus_eeprom disabled; skipping EEPROM presets read")
+
+    filter_spikes = parser_battery.filter_spikes
+    handle_battery = parser_battery.handle_battery
+    pad_state_path = main_settings.PAD_STATE_PATH
+
     gateway = ModbusGateway(config)
     battery_model = config.get('battery_model', 'BAT-5KWH-51.2V')
     read_timeout = config.get('read_timeout', 15)
@@ -67,7 +99,11 @@ if __name__ == '__main__':
 
     # Print configuration
     main_console.print_config_table(config)
-    main_console.print_inverter_protocols_table(modbus_inverter.INVERTER_PROTOCOLS)
+
+    if enable_modbus_inverter and modbus_inverter is not None:
+        main_console.print_inverter_protocols_table(modbus_inverter.INVERTER_PROTOCOLS)
+    else:
+        print("[INFO] modbus_inverter disabled; skipping inverter protocols print")
 
     # Open gateway connection
     try:
@@ -82,42 +118,49 @@ if __name__ == '__main__':
         for i in range(1, num_batteries + 1)
     }
 
-    # Inverter protocol
     battery_ids = list(range(1, num_batteries + 1))
 
-    refresh_inverter_protocol = publish_inverter_protocol(
-        client,
-        gateway,
-        battery_ids,
-        on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
-    )
-
-    # Read all inverter protocols using the new function
-    protocols_list = modbus_inverter.read_all_inverter_protocols(client, gateway, battery_ids)
-
-    # Print the protocols in a pretty table
-    main_console.print_inverter_protocols_table_batteries(protocols_list)
+    refresh_inverter_protocol = None
+    if enable_modbus_inverter and modbus_inverter is not None:
+        refresh_inverter_protocol = publish_inverter_protocol(
+            client,
+            gateway,
+            battery_ids,
+            on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
+        )
+        # Read and print inverter protocols
+        protocols_list = modbus_inverter.read_all_inverter_protocols(client, gateway, battery_ids)
+        main_console.print_inverter_protocols_table_batteries(protocols_list)
+    else:
+        print("[INFO] modbus_inverter disabled; skipping inverter protocols read")
+        protocols_list = []
 
     # Read and publish EEPROM presets once at startup
-    print("Please wait for BMS EEPROM reading...")
-    read_and_process_presets(client, gateway, battery_ids)
+    if enable_modbus_eeprom:
+        print("Please wait for BMS EEPROM reading...")
+        read_and_process_presets(client, gateway, battery_ids)
+    else:
+        print("[INFO] EEPROM presets read skipped due to configuration")
 
     # Clean outdated cell topics affected by zero_pad_cells changes
     time.sleep(5)
-    if has_zeropad_changed(zero_pad_cells):
+    if has_zeropad_changed(zero_pad_cells, pad_state_path):
         print("[INFO] zero_pad_cells setting changed — cleaning old cell MQTT topics...")
         delete_battery_cell_topics_on_zeropad_change(client, num_batteries, zero_pad_cells)
-        save_zeropad_state(zero_pad_cells)
-    
+        save_zeropad_state(zero_pad_cells, pad_state_path)
+
     # End line
     print("-" * 112)
     
     # Main loop
     try:
         while True:
+            # Skip polling if pause is set (e.g. after inverter write)
             if time.time() < pause_polling_until:
                 time.sleep(0.1)
                 continue
+
+            # Wait configured read timeout between polls
             time.sleep(read_timeout)
 
             # === Reconnect workaround ===
@@ -138,6 +181,7 @@ if __name__ == '__main__':
             valid_mos = []
 
             for i in range(1, num_batteries + 1):
+                # Delay between batteries to avoid gateway overload
                 if i > 1:
                     time.sleep(next_battery_delay)
 
@@ -211,4 +255,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"[ERROR] Exception in main loop: {e}")
     finally:
+        client.loop_stop()
         gateway.close()
