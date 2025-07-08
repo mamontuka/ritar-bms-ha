@@ -21,6 +21,9 @@ Supported **Ritar Power** 5, 10, 15KWH models, and maybe other, also have inform
 
 [Screenshots](https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples/homeassistant_screenshots)
 
+### Create own BMS addon for for batteries manufactured by other vendors with United BMS feature :
+[United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md)
+
 </br>\
 Instalation : </br>\
 1 - Add this repository to addons (three dots) - https://github.com/mamontuka/ritar-bms-ha </br>
@@ -30,9 +33,10 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9.6 - Structure rework, code cleanups. Preparing for changing version numeration from "current" to "stable". At this moment, during tests, not found any issues, if you know what works not properly or not how expected - let me know, please. <br>
+>UPDATE 1.9.6.5 - Introducing new feature - **United BMS** - this feature give you ability customize Ritar BMS addon. **Or create by self, BMS addon for batteries manufactured by other vendors !** [README](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md)</br>
 
->UPDATE 1.9.5.6 - Structure rework for better source code understanding. Fixed properly forgoten config option "zero_pad_cells" - now it works how was expected and switch cell numeration with cleanup in mqtt entities. Improved graphs spikes filtering in Ritar ESS device for multibattery setups. </br>\
+>UPDATE 1.9.6 - Structure rework, code cleanups. Preparing for changing version numeration from "current" to "stable". At this moment, during tests, not found any issues, if you know what works not properly or not how expected - let me know, please. <br> \
+UPDATE 1.9.5.6 - Structure rework for better source code understanding. Fixed properly forgoten config option "zero_pad_cells" - now it works how was expected and switch cell numeration with cleanup in mqtt entities. Improved graphs spikes filtering in Ritar ESS device for multibattery setups. </br>\
 UPDATE 1.9.5 - Code cleanups, optimizations, structure reworks. Fixed wrong understanding by Homeassistant mqtt, EEPROM parameter x_soc_alarm_threshold, now showed right.</br>\
 UPDATE 1.9.4.1 - **HOTFIX** Fixed wrong measurement unit for x_pack_full_charge_voltage. Please delete mqtt logic device "Ritar ESS", and restart addon. It will repair wrong graphs. **AND/OR delete entity missvalues graphs** - [HOWTO](https://github.com/mamontuka/ritar-bms-ha/blob/main/homeassistant_entities_cards_examples/homeassistant_screenshots/delete_entity_missvalues_graphs.jpg)</br>\
 UPDATE 1.9.4 - MAJOR UPDATE. Big amount code optimizations, structure reworks, fixes. Added new functional for read BMS EEPROM presets, what show in addon console log most important BMS parameters, in setups with more than one battery - check parameters betwen batteries, publish they into mqtt Ritar ESS device, for more information. In case if parameters different betwen batteries - draw tables for analyse to addon console log, remove EEPROM preset from Ritar ESS. **Keep in mind, what Homeassistant round values by default. Change Voltages round to 2 symbols, eg. 58.40, etc**</br>\
