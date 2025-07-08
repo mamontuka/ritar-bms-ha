@@ -7,8 +7,8 @@ services:
     privileged: true
     volumes:
       - ./config.yaml:/workdir/config.yaml
+      - ${PWD}/united_bms:/united_bms
       - /dev:/dev
     devices:
       - /dev/ttyUSB0:/dev/ttyUSB0
       - /dev/ttyUSB1:/dev/ttyUSB1
-  
