@@ -100,6 +100,11 @@ if __name__ == '__main__':
     # Print configuration
     main_console.print_config_table(config)
 
+    if enable_modbus_inverter and modbus_inverter is not None:
+        main_console.print_inverter_protocols_table(modbus_inverter.INVERTER_PROTOCOLS)
+    else:
+        print("[INFO] modbus_inverter disabled; skipping inverter protocols print")
+
     # Open gateway connection
     try:
         gateway.open()
@@ -115,8 +120,6 @@ if __name__ == '__main__':
 
     battery_ids = list(range(1, num_batteries + 1))
 
-    protocols_list = modbus_inverter.read_all_inverter_protocols(client, gateway, battery_ids)
-    
     refresh_inverter_protocol = None
     if enable_modbus_inverter and modbus_inverter is not None:
         refresh_inverter_protocol = publish_inverter_protocol(
