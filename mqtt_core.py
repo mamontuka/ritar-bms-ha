@@ -2,15 +2,49 @@
 
 import json
 import time
+import sys
+import importlib
 import main_console
 
-from modbus_registers import INVERTER_PROTOCOLS, PRESET_UNITS_DEVICE_CLASSES
-from modbus_inverter import (
-    read_inverter_protocol,
-    write_inverter_protocol,
-    read_all_inverter_protocols,
-    INVERTER_PROTOCOLS_REVERSE
-)
+# --- Dynamic imports to support overrides like in main.py ---
+custom_dir = "/config/united_bms"
+if custom_dir not in sys.path:
+    sys.path.insert(0, custom_dir)
+
+modbus_registers = importlib.import_module("modbus_registers")
+modbus_inverter = importlib.import_module("modbus_inverter")
+main_settings = importlib.import_module("main_settings")
+parser_temperature = importlib.import_module("parser_temperature")
+
+# Extract constants and functions
+INVERTER_PROTOCOLS = modbus_registers.INVERTER_PROTOCOLS
+PRESET_UNITS_DEVICE_CLASSES = modbus_registers.PRESET_UNITS_DEVICE_CLASSES
+INVERTER_PROTOCOLS_REVERSE = modbus_inverter.get_inverter_protocols_reverse(modbus_registers)
+
+
+read_inverter_protocol = modbus_inverter.read_inverter_protocol
+write_inverter_protocol = modbus_inverter.write_inverter_protocol
+read_all_inverter_protocols = modbus_inverter.read_all_inverter_protocols
+
+volt_min_limit = main_settings.volt_min_limit
+volt_max_limit = main_settings.volt_max_limit
+MANUFACTURER = main_settings.MANUFACTURER
+BATTERY_BASE_TOPIC_TEMPLATE = main_settings.BATTERY_BASE_TOPIC_TEMPLATE
+BATTERY_DEVICE_MODEL_TEMPLATE = main_settings.BATTERY_DEVICE_MODEL_TEMPLATE
+BATTERY_DEVICE_IDENTIFIERS_TEMPLATE = main_settings.BATTERY_DEVICE_IDENTIFIERS_TEMPLATE
+BATTERY_UNIQUE_ID_TEMPLATE = main_settings.BATTERY_UNIQUE_ID_TEMPLATE
+BATTERY_OBJECT_ID_TEMPLATE = main_settings.BATTERY_OBJECT_ID_TEMPLATE
+ESS_BASE_TOPIC = main_settings.ESS_BASE_TOPIC
+ESS_DEVICE_IDENTIFIERS = main_settings.ESS_DEVICE_IDENTIFIERS
+ESS_DEVICE_NAME = main_settings.ESS_DEVICE_NAME
+ESS_DEVICE_MODEL = main_settings.ESS_DEVICE_MODEL
+ESS_UNIQUE_ID_TEMPLATE = main_settings.ESS_UNIQUE_ID_TEMPLATE
+ESS_OBJECT_ID_TEMPLATE = main_settings.ESS_OBJECT_ID_TEMPLATE
+INVERTER_PROTOCOL_BASE_TOPIC = main_settings.INVERTER_PROTOCOL_BASE_TOPIC
+INVERTER_PROTOCOL_UNIQUE_ID = main_settings.INVERTER_PROTOCOL_UNIQUE_ID
+INVERTER_PROTOCOL_OBJECT_ID = main_settings.INVERTER_PROTOCOL_OBJECT_ID
+
+filter_temperature_spikes = parser_temperature.filter_temperature_spikes
 
 from main_arrays import (
     last_valid_voltage,
@@ -21,27 +55,11 @@ from main_arrays import (
     last_valid_extra,
 )
 
-from main_settings import (
-    volt_min_limit,
-    volt_max_limit,
-    MANUFACTURER,
-    BATTERY_BASE_TOPIC_TEMPLATE,
-    BATTERY_DEVICE_MODEL_TEMPLATE,
-    BATTERY_DEVICE_IDENTIFIERS_TEMPLATE,
-    BATTERY_UNIQUE_ID_TEMPLATE,
-    BATTERY_OBJECT_ID_TEMPLATE,
-    ESS_BASE_TOPIC,
-    ESS_DEVICE_IDENTIFIERS,
-    ESS_DEVICE_NAME,
-    ESS_DEVICE_MODEL,
-    ESS_UNIQUE_ID_TEMPLATE,
-    ESS_OBJECT_ID_TEMPLATE,
-    INVERTER_PROTOCOL_BASE_TOPIC,
-    INVERTER_PROTOCOL_UNIQUE_ID,
-    INVERTER_PROTOCOL_OBJECT_ID,
-)
 
-from parser_temperature import filter_temperature_spikes
+# --- Helper to publish a single sensor config & state ---
+def publish_sensor(client, cfg_topic, state_topic, cfg_dict, value):
+    client.publish(cfg_topic, json.dumps(cfg_dict), retain=True)
+    client.publish(state_topic, json.dumps({'state': value}), retain=True)
 
 
 # --- Delete only battery cell MQTT topics when zero_pad_cells changes ---
@@ -53,15 +71,10 @@ def delete_battery_cell_topics_on_zeropad_change(client, num_batteries, zero_pad
     for index in range(1, num_batteries + 1):
         base = BATTERY_BASE_TOPIC_TEMPLATE.format(index=index)
         for i in range(1, max_cells + 1):
-            # Clean both padded and non-padded versions to ensure full cleanup
             cell_id_padded = f"{i:02}"
             cell_id_unpadded = str(i)
-            if zero_pad_cells:
-                # We're about to use padded form → delete unpadded
-                cell_id = cell_id_unpadded
-            else:
-                # We're about to use unpadded form → delete padded
-                cell_id = cell_id_padded
+            # If zero_pad_cells enabled, delete unpadded topics; else delete padded topics
+            cell_id = cell_id_unpadded if zero_pad_cells else cell_id_padded
 
             client.publish(f"{base}/cell_{cell_id}/config", "", retain=True)
             client.publish(f"{base}/cell_{cell_id}", "", retain=True)
@@ -92,8 +105,8 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
         }
         if state_class:
             cfg['state_class'] = state_class
-        client.publish(cfg_topic, json.dumps(cfg), retain=True)
-        client.publish(state_topic, json.dumps({'state': value}), retain=True)
+
+        publish_sensor(client, cfg_topic, state_topic, cfg, value)
 
     # Core sensors with caching fallback
     voltage = data['voltage']
@@ -180,8 +193,8 @@ def publish_summary_sensors(client, soc_avg, volt_avg, current_sum, power_sum, m
         }
         if state_class:
             cfg['state_class'] = state_class
-        client.publish(cfg_topic, json.dumps(cfg), retain=True)
-        client.publish(state_topic, json.dumps({'state': value}), retain=True)
+
+        publish_sensor(client, cfg_topic, state_topic, cfg, value)
 
     if soc_avg is not None:
         pub('soc_avg', 'SOC Average', 'battery', '%', soc_avg, state_class='measurement')
@@ -197,8 +210,7 @@ def publish_summary_sensors(client, soc_avg, volt_avg, current_sum, power_sum, m
 
 
 # --- Batteries inverter protocol MQTT publisher ---
-def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
-    global pause_polling_until
+def publish_inverter_protocol(client, gateway, battery_ids, modbus_registers, on_write=None):
     base = INVERTER_PROTOCOL_BASE_TOPIC
     device_info = {
         'identifiers': ESS_DEVICE_IDENTIFIERS,
@@ -225,7 +237,7 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
 
     types = []
     for bat in battery_ids:
-        val = read_inverter_protocol(gateway, bat)
+        val = read_inverter_protocol(gateway, bat, modbus_registers)
         if val is not None:
             types.append(val)
         else:
@@ -244,19 +256,19 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
         client.publish(topic_state, json.dumps({"state": "Unknown"}), retain=True)
 
     def on_message(client, userdata, msg):
-        global pause_polling_until
         payload = msg.payload.decode().strip()
         value = INVERTER_PROTOCOLS_REVERSE.get(payload)
         if value is not None:
             print(f"[MQTT] Changing inverter protocol to: {payload} ({value})")
-            pause_polling_until = time.time() + 7
+            if on_write:
+                on_write()
             for bat in battery_ids:
-                write_inverter_protocol(gateway, bat, value, on_write=on_write)
+                write_inverter_protocol(gateway, bat, value, modbus_registers, on_write=on_write)
                 time.sleep(2)
             client.publish(topic_state, json.dumps({"state": payload}), retain=True)
 
             print("[INFO] Please wait result confirmation...")
-            updated_protocols = read_all_inverter_protocols(client, gateway, battery_ids)
+            updated_protocols = read_all_inverter_protocols(client, gateway, battery_ids, modbus_registers)
             main_console.print_inverter_protocols_table_batteries(updated_protocols)
             print("[INFO] Next change available after 10 seconds !")
         else:
@@ -269,7 +281,7 @@ def publish_inverter_protocol(client, gateway, battery_ids, on_write=None):
     def refresh():
         types = []
         for bat in battery_ids:
-            val = read_inverter_protocol(gateway, bat)
+            val = read_inverter_protocol(gateway, bat, modbus_registers)
             if val is not None:
                 types.append(val)
             time.sleep(0.5)
