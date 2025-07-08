@@ -60,22 +60,18 @@ if __name__ == '__main__':
     if enable_modbus_inverter:
         modbus_inverter = try_import_custom_module("modbus_inverter", custom_dir)
     else:
-        modbus_inverter = None  # Or create a dummy module if needed
+        modbus_inverter = None
 
     if enable_modbus_eeprom:
         modbus_eeprom = try_import_custom_module("modbus_eeprom", custom_dir)
-        read_and_process_presets = modbus_eeprom.read_and_process_presets
     else:
         modbus_eeprom = None
-        # Provide dummy function to avoid errors if called
-        def read_and_process_presets(*args, **kwargs):
-            print("[INFO] modbus_eeprom disabled; skipping EEPROM presets read")
 
     filter_spikes = parser_battery.filter_spikes
     handle_battery = parser_battery.handle_battery
     pad_state_path = main_settings.PAD_STATE_PATH
 
-    gateway = ModbusGateway(config)
+    gateway = ModbusGateway(config, modbus_registers)
     battery_model = config.get('battery_model', 'BAT-5KWH-51.2V')
     read_timeout = config.get('read_timeout', 15)
     zero_pad_cells = config.get('zero_pad_cells', False)
@@ -99,12 +95,7 @@ if __name__ == '__main__':
 
     # Print configuration
     main_console.print_config_table(config)
-
-    if enable_modbus_inverter and modbus_inverter is not None:
-        main_console.print_inverter_protocols_table(modbus_inverter.INVERTER_PROTOCOLS)
-    else:
-        print("[INFO] modbus_inverter disabled; skipping inverter protocols print")
-
+    
     # Open gateway connection
     try:
         gateway.open()
@@ -114,31 +105,45 @@ if __name__ == '__main__':
 
     num_batteries = config.get('num_batteries', 1)
     queries = {
-        i: modbus_battery.get_all_queries_for_battery(i)
+        i: modbus_battery.get_all_queries_for_battery(i, modbus_registers)
         for i in range(1, num_batteries + 1)
     }
 
+
     battery_ids = list(range(1, num_batteries + 1))
 
+    # Read, write, and print inverter protocols
     refresh_inverter_protocol = None
     if enable_modbus_inverter and modbus_inverter is not None:
         refresh_inverter_protocol = publish_inverter_protocol(
             client,
             gateway,
             battery_ids,
+            modbus_registers,
             on_write=lambda: globals().__setitem__('pause_polling_until', time.time() + 10)
         )
-        # Read and print inverter protocols
-        protocols_list = modbus_inverter.read_all_inverter_protocols(client, gateway, battery_ids)
+
+        # 1. Print static known inverter protocols from file
+        print("\n[INFO] Supported inverter protocols from modbus_registers:\n")
+        main_console.print_inverter_protocols_table(modbus_registers.INVERTER_PROTOCOLS)
+
+        # 2. Read actual protocols from all batteries
+        protocols_list = modbus_inverter.read_all_inverter_protocols(
+            client, gateway, battery_ids, modbus_registers
+        )
+
+        # 3. Print detected inverter protocols per battery
+        print("\n[INFO] Inverter protocols currently set in batteries:\n")
         main_console.print_inverter_protocols_table_batteries(protocols_list)
     else:
         print("[INFO] modbus_inverter disabled; skipping inverter protocols read")
         protocols_list = []
 
+
     # Read and publish EEPROM presets once at startup
     if enable_modbus_eeprom:
         print("Please wait for BMS EEPROM reading...")
-        read_and_process_presets(client, gateway, battery_ids)
+        modbus_eeprom.read_and_process_presets(client, gateway, battery_ids, modbus_registers)
     else:
         print("[INFO] EEPROM presets read skipped due to configuration")
 
