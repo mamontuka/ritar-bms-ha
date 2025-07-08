@@ -5,8 +5,6 @@ import serial
 import struct
 import time
 
-from modbus_registers import FUNC_READ_HOLDING_REGS, FUNC_WRITE_SINGLE_REG, FUNC_WRITE_MULTIPLE_REGS
-
 def modbus_crc16(data: bytes) -> bytes:
     crc = 0xFFFF
     for pos in data:
@@ -16,7 +14,9 @@ def modbus_crc16(data: bytes) -> bytes:
     return struct.pack('<H', crc)
 
 class ModbusGateway:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, modbus_registers):
+        self.config = config
+        self.modbus_registers = modbus_registers
         self._sock = None
         self._serial = None
         self.timeout = config.get('connection_timeout', 3)
@@ -131,7 +131,7 @@ class ModbusGateway:
         )
 
     def read_holding_registers(self, slave: int, address: int, count: int = 1):
-        function_code = FUNC_READ_HOLDING_REGS
+        function_code = self.modbus_registers.FUNC_READ_HOLDING_REGS
         payload = struct.pack('>B B H H', slave, function_code, address, count)
         crc = modbus_crc16(payload)
         frame = payload + crc
@@ -157,7 +157,7 @@ class ModbusGateway:
         return [int.from_bytes(data[i:i+2], 'big') for i in range(0, byte_count, 2)]
 
     def write_register(self, slave: int, address: int, value: int) -> bool:
-        function_code = FUNC_WRITE_SINGLE_REG
+        function_code = self.modbus_registers.FUNC_WRITE_SINGLE_REG
         payload = struct.pack('>B B H H', slave, function_code, address, value)
         crc = modbus_crc16(payload)
         frame = payload + crc
@@ -190,7 +190,7 @@ class ModbusGateway:
         byte_count = count * 2
         frame = bytearray()
         frame.append(slave)
-        frame.append(FUNC_WRITE_MULTIPLE_REGS)
+        frame.append(self.modbus_registers.FUNC_WRITE_MULTIPLE_REGS)
         frame += address.to_bytes(2, 'big')
         frame += count.to_bytes(2, 'big')
         frame.append(byte_count)
@@ -221,7 +221,7 @@ class ModbusGateway:
                     break
                 response.extend(chunk)
             if (len(response) == 8 and
-                response[1] == FUNC_WRITE_MULTIPLE_REGS and
+                response[1] == self.modbus_registers.FUNC_WRITE_MULTIPLE_REGS and
                 modbus_crc16(response[:-2]) == response[-2:]):
                 return True
             time.sleep(retry_delay)
