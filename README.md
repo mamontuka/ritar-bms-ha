@@ -33,7 +33,7 @@ Instalation : </br>\
 </br>
 </br>
 
->UPDATE 1.9.7.5 - Improvements and fixes for introduced **United BMS framework**. Updated logic, fallbacks, now modbus_battery.py module aso available for custom modification. Feature marked stable, if you use **properly structured** modules templates. Also added  protection from zero size modules.</br>
+>UPDATE 1.9.7.5 - Improvements and fixes for introduced **United BMS framework**. Updated logic, fallbacks, now modbus_battery.py module also available for custom modification. Feature marked stable, if you use **properly structured** modules templates. Also added  protection from zero size modules.</br>
 
 >UPDATE 1.9.7 - Introducing new feature - **United BMS** - this feature give you ability customize Ritar BMS addon. **Or create by self, BMS addon for batteries manufactured by other vendors !** [README](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md) . After update do double addon restart, or just reistall, for properly changing work structure.</br>
 
