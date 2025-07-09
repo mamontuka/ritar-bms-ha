@@ -19,6 +19,7 @@ At startup, the addon tries to load modules in this order:
     If not found, fallback to the internal default module bundled in the addon
 
 This means if you provide a custom modbus_registers.py in /config/united_bms/, your version will be used instead of the built-in one.
+
 Getting Started
 Prerequisites
 
