@@ -41,6 +41,7 @@ Copy or create any of the following files you want to override inside /config/un
     main_settings.py
     modbus_inverter.py
     modbus_eeprom.py
+    modbus_battery.py
 
 **You do not need to override all files — only the ones you want to customize.**
 
