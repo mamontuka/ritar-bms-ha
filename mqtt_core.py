@@ -148,7 +148,13 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
     # Temperatures with spike filtering and caching
     if data['temps']:
         last_temps = last_valid_temps.get(index, [])
-        valid_temps = filter_temperature_spikes(data['temps'], last_temps)
+        valid_temps = filter_temperature_spikes(
+            data['temps'],
+            last_temps,
+            main_settings.temp_min_limit,
+            main_settings.temp_max_limit,
+            delta_limit=10
+        )
         last_valid_temps[index] = valid_temps
         for i, t in enumerate(valid_temps, start=1):
             pub(f'temp_{i}', f'Temp {i}', 'temperature', '°C', t)
