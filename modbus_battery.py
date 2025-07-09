@@ -13,9 +13,11 @@ def build_read_holding_registers_query(slave: int, register: int, count: int, mo
 
 def get_all_queries_for_battery(bat_id: int, modbus_registers) -> dict:
     """
-    Returns a dictionary of query names and bytes for a specific battery.
-    bat_id: slave id, must be from 1 to 15 (no zero).
+    Return dictionary of queries to perform.
+    The main program checks for presence of keys before sending queries,
+    so you can comment out any query here to disable it safely.
     """
+
     if bat_id < 1 or bat_id > 15:
         raise ValueError("Battery ID must be between 1 and 15")
 
