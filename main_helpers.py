@@ -89,12 +89,18 @@ def save_zeropad_state(current_value, pad_state_path):
 
 # === United BMS custom modules loader ===
 def try_import_custom_module(module_name, custom_dir):
-    """Try importing a module from custom_dir, fall back to standard import."""
+    """Try importing a module from custom_dir, or fall back to internal module."""
     if not custom_dir:
         print(f"[INFO] No custom path provided. Using internal {module_name}.py")
         return __import__(module_name)
 
     module_path = os.path.join(custom_dir, f"{module_name}.py")
+
+    # === Check for zero-size override file ===
+    if os.path.isfile(module_path) and os.path.getsize(module_path) == 0:
+        print(f"[ERROR] Custom override file {module_path} is empty. Cannot continue.")
+        sys.exit(1)  # Immediately stop execution
+
     if os.path.exists(module_path):
         try:
             spec = importlib.util.spec_from_file_location(module_name, module_path)
@@ -104,9 +110,10 @@ def try_import_custom_module(module_name, custom_dir):
                 print(f"[INFO] Loaded override {module_name}.py from {module_path}")
                 return module
         except Exception as e:
-            print(f"[WARN] Failed to import override {module_name} from {module_path}: {e}")
+            print(f"[ERROR] Failed to import override {module_name} from {module_path}: {e}")
+            sys.exit(1)  # Exit on import error
 
-    # This fallback line will always run if no override was loaded
+    # === Try internal fallback ===
     try:
         module = __import__(module_name)
         real_path = module.__file__ if hasattr(module, '__file__') else "(built-in)"
@@ -114,4 +121,19 @@ def try_import_custom_module(module_name, custom_dir):
         return module
     except Exception as e:
         print(f"[ERROR] Failed to load internal module {module_name}: {e}")
-        raise
+        sys.exit(1)
+
+# === United BMS protect functions ===
+def get_optional_attr(module, attr_name, default=None, warn_if_missing=True):
+    """
+    Safely gets an attribute from a module. Returns default if not found.
+    If warn_if_missing is True, prints a warning if attribute is missing.
+    """
+    if module is None:
+        return default
+    try:
+        return getattr(module, attr_name)
+    except AttributeError:
+        if warn_if_missing:
+            print(f"[WARN] Module '{module.__name__}' does not have attribute '{attr_name}'")
+        return default
