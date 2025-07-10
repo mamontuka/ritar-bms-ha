@@ -1,88 +1,118 @@
-### ritar-bms-ha
-# <b>Homeassitant Addon for Ritar BAT-5KWH-51.2V BMS</b></br>
+# 🔋 Ritar BMS for Home Assistant
+**A Home Assistant Addon for Ritar BAT-5KWH-51.2V BMS and compatible batteries**
 
-Supported **Ritar Power** 5, 10, 15KWH models, and maybe other, also have information about partial support **YHI Energy** and **Hollandia Power** batteries</br>
+---
 
-[RITAR POWER Site](https://www.gptess.com/lithium-ion_battery_System/66.html)\
-[Official documentation](https://github.com/mamontuka/ritar-bms-ha/tree/main/official_documentation) \
-[Official service software](https://github.com/mamontuka/ritar-bms-ha/tree/main/official_bms_software) \
-[Official monitoring bluetooth android application](https://github.com/mamontuka/ritar-bms-ha/tree/main/android_bluetooth_monitoring_app) \
-[Review pictures](https://github.com/mamontuka/ritar-bms-ha/tree/main/battery_review_pictures)
+## 🌐 Supported Devices
 
-[RS485 to ethernet gate software and documentation](https://github.com/mamontuka/ritar-bms-ha/tree/main/RS-485_to_ethernet_gate)\
-[Wiring to RS485 to ethernet gate](https://github.com/mamontuka/ritar-bms-ha/blob/main/RS-485_to_ethernet_gate/WIRING.md)\
-[**CONNECT WITH DEYE INVERTERS OVER CAN BUS**](https://github.com/mamontuka/ritar-bms-ha/tree/main/UNDOCUMENTED_WIRING_WITH_DEYE/README.md)
+- ✅ Ritar Power 5KWH / 10KWH / 15KWH models
+- ✅ Partial support: YHI Energy, Hollandia Power
+- ✅ Others via [United BMS](#-united-bms-framework)
 
-[Unified Modbus BMS debugger/commandline tool](https://github.com/mamontuka/ritar-bms-ha/tree/main/Modbus_BMS_Debugger)\
-[BMS protocol reverse engineering examples](https://github.com/mamontuka/ritar-bms-ha/tree/main/bms_protocol_reverse%20engineering)
+---
 
-[Homeassistant community page](https://community.home-assistant.io/t/ritar-bat-5kwh-51-2v-lifepo4-battery/)\
-[Homeassitant entities cards examples](https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples)
+## 📷 Visual & Documentation
 
-[Screenshots](https://github.com/mamontuka/ritar-bms-ha/tree/main/homeassistant_entities_cards_examples/homeassistant_screenshots)
+- [📄 RITAR POWER Site](https://www.gptess.com/lithium-ion_battery_System/66.html)
+- [📄 Official Documentation](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/Ritar_official_software_and_documentation/documentation)
+- [🔧 Official Ritar BMS Software](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/Ritar_official_software_and_documentation/software/windows)
+- [📱 Official Android Bluetooth App](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/Ritar_official_software_and_documentation/software/android)
+- [🖼 Battery Review Pictures](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Ritar_official_software_and_documentation/review_pictures/README.md)
 
-### Create own BMS addon for for batteries manufactured by other vendors with United BMS feature :
-[United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md)
+---
 
-</br>\
-Instalation : </br>\
-1 - Add this repository to addons (three dots) - https://github.com/mamontuka/ritar-bms-ha </br>
-2 - Install this addon </br>
-3 - In addon setings choose RS485 gate IP, port, and how much battery you have (at now supported 1 - 15), MQTT settings </br>
-4 - Take examples, ajust for self </br>
-</br>
-</br>
+- [🔌 RS485 Adapters and Ethernet Gates Software and Documentation](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/RS485_adapters_and_ethernet_gates)
+- [🔌 Wiring to RS485 Basics, example equipment - Deye 6K-SG03LP1-EU + VKmodule ENET-485 gate](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/RS485_adapters_and_ethernet_gates/VKmodule.com.ua_Enet-485/README.md)
+- [🔌 Wiring with Deye Inverters Over CAN Bus](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/RS485_adapters_and_ethernet_gates/UNDOCUMENTED_WIRING_WITH_DEYE/README.md)
 
->UPDATE 1.9.7.5 - Improvements and fixes for introduced **United BMS framework**. Updated logic, fallbacks, now modbus_battery.py module also available for custom modification. Feature marked stable, if you use **properly structured** modules templates. Also added  protection from zero size modules.</br>
+---
 
->UPDATE 1.9.7 - Introducing new feature - **United BMS** - this feature give you ability customize Ritar BMS addon. **Or create by self, BMS addon for batteries manufactured by other vendors !** [README](https://github.com/mamontuka/ritar-bms-ha/blob/main/README_United_BMS.md) . After update do double addon restart, or just reistall, for properly changing work structure.</br>
+- [📊 Home Assistant Screenshots](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Homeassistant/homeassistant_screenshots/README.md)
+- [📊 Home Assistant Cards Examples](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/Homeassistant/homeassistant_cards)
+---
 
->UPDATE 1.9.6 - Structure rework, code cleanups. Preparing for changing version numeration from "current" to "stable". At this moment, during tests, not found any issues, if you know what works not properly or not how expected - let me know, please. <br> \
-UPDATE 1.9.5.6 - Structure rework for better source code understanding. Fixed properly forgoten config option "zero_pad_cells" - now it works how was expected and switch cell numeration with cleanup in mqtt entities. Improved graphs spikes filtering in Ritar ESS device for multibattery setups. </br>\
-UPDATE 1.9.5 - Code cleanups, optimizations, structure reworks. Fixed wrong understanding by Homeassistant mqtt, EEPROM parameter x_soc_alarm_threshold, now showed right.</br>\
-UPDATE 1.9.4.1 - **HOTFIX** Fixed wrong measurement unit for x_pack_full_charge_voltage. Please delete mqtt logic device "Ritar ESS", and restart addon. It will repair wrong graphs. **AND/OR delete entity missvalues graphs** - [HOWTO](https://github.com/mamontuka/ritar-bms-ha/blob/main/homeassistant_entities_cards_examples/homeassistant_screenshots/delete_entity_missvalues_graphs.jpg)</br>\
-UPDATE 1.9.4 - MAJOR UPDATE. Big amount code optimizations, structure reworks, fixes. Added new functional for read BMS EEPROM presets, what show in addon console log most important BMS parameters, in setups with more than one battery - check parameters betwen batteries, publish they into mqtt Ritar ESS device, for more information. In case if parameters different betwen batteries - draw tables for analyse to addon console log, remove EEPROM preset from Ritar ESS. **Keep in mind, what Homeassistant round values by default. Change Voltages round to 2 symbols, eg. 58.40, etc**</br>\
-UPDATE 1.9.2.5 - **HOTFIX** Fixed in Ritar ESS - SOC Average and Voltage Average spikes on graphs. Structure improvements. </br>\
-UPDATE 1.9.2.4 - **HOTFIX** SETTED BACK DEFAULT read_timeout to **15 SECONDS**, because testing on my setup - 2x5.1 Rittar batteries (SMA protocol) what connected over CAN bus to Deye 6K-SG03LP1-EU (LiBMS protocol 00), show what with less than 15 sec read_timeout - CAUSE LOST CONNECTION WITH INVERTER, change this option by your opinion, but be awared about possible issues ! Different fixes in almost all code parts. Added switch into configuration, for turn on not critical warnings in console output (turned off by default).</br>\
-UPDATE 1.9.2 - fixes, cleanups, improving addon log output, battery readings output to console now turnable from configuration and by default turned off. </br>\
-UPDATE 1.9.1 - added option in "Ritar ESS" logic device, for set compatible inverter protocol on connected batteries units, directly from Homeassistant. Inverter protocols, supported by Ritar BMS listed below: </br>
+- [💬 Community Page](https://community.home-assistant.io/t/ritar-bat-5kwh-51-2v-lifepo4-battery/)
 
-    0: "RITAR_RS485 (RITARV1_8)",
-    1: "DEYE_RS485 (Deye BMS Protocol 12), PLY(DEYE,SMK,FIRMAN,Hollandia)",
-    2: "GROWATT_RS485",
-    3: "VOLTRONIC_RS485, LIB05(VOLTRONIC,XUNZEL,TESLA,GSB SOLAR,PCE)",
-    4: "UPOWER_RS485",
-    5: "VERTIV_RS485",
-    6: "ELTEK_RS485",
-    7: "RITAR_MODBUSV1_9_RS485",
-    8: "VICTRON_CAN",
-    9: "RITAR_CAN",
-    10: "SMA_CAN (Deye BMS Protocol 00)",
-    11: "MEGAREVO_CAN",
-    12: "TBB_CAN",
-    13: "SOLIS_CAN",
-    14: "INHENERGY_RS485",
-    15: "MUST_CAN",
-    16: "PYON_CAN",
-    17: "LUXPOWERTEK_RS485",
-    18: "PHOCOS_RS485",
+---
 
->UPDATE 1.9 - MAJOR UPDATE. successfuly reworked protocol.py, reworked querries, reworked logic structures, fuses for prevent publication into MQTT/RecorderDB wrong or missreaded values, default read_timeout reduced to 10 seconds for better and fast response (set in config 10sec or less, if you see issues in addon log). Can work in realtime response with read_timeout 1 second (require more CPU resources). Ritar ESS logic device prepared for registers write functional in future releases. Zero DIP numbered battery no longer supported due protocol and modbus limitations, maximum amount of battery units - 15 at now. </br>\
-UPDATE 1.8.12 - fixes </br>\
-UPDATE 1.8.10 - added new MQTT device - **"Ritar ESS"**, what contain summary SOC, average batteries voltage, average MOS and environment temperatures, summary current and power sensors, for all present battery units. Several small fixes. Logic and parsing improvements, hotfixes. </br>\
-UPDATE 1.8.8 - reworked modbus_gateway.py for compability with my brand new [**Unified Modbus BMS debugger/commandline tool**](https://github.com/mamontuka/ritar-bms-ha/tree/main/Modbus_BMS_Debugger), for development purposes and future releases. </br>\
-UPDATE 1.8.7 - informational. [README HERE](https://github.com/mamontuka/ritar-bms-ha/tree/main/BMS_SETTINGS) </br>\
-UPDATE 1.8.6 - cosmetic switch in configuration, for numbering cells from zero, like "cell_01, cell_02... cell_16" instead default naming like "cell_1, cell_2... cell_16" </br> \
-UPDATE 1.8.4 - improved temperature checks before publishing into MQTT. default batteries read timeout changed to 15 seconds, for more responsive work. </br>\
-UPDATE 1.8.2 - config.yaml hotfix, added uart:true, usb:true </br>\
-UPDATE 1.8.1 - docker-compose.yaml hotfix, added devices /dev/ttyUSB0 and /dev/ttyUSB1 </br>\
-UPDATE 1.8 - added support for serial connection, now you can choose what connection type you prefer. Major reworks and optimizations. </br>\
-UPDATE 1.7.3 - added support for **up to 16 battery units. 15 - DIP switches 1111, 16 (zero number actualy) - DIP switches 0000.** Added important information about alternative wiring with Deye inverters over [**CAN bus - NEW UNDOCUMENTED IN OFFICIAL SOURCES WAY TO CONNECT WITH DEYE INVERTERS OVER CAN BUS**](https://github.com/mamontuka/ritar-bms-ha/tree/main/UNDOCUMENTED_WIRING_WITH_DEYE/README.md) </br>\
-UPDATE 1.7.2 - added support for [**up to 14 battery units. READ THIS information about modbus IDs, DIP switches, inverter setup !**](https://github.com/mamontuka/ritar-bms-ha/blob/main/RS-485_to_ethernet_gate/WIRING.md) . Modbus IDs 0 and 15 - reserved for technical purposes. </br>\
-UPDATE 1.7 - MAJOR UPDATE. Serious main code reworking and optimizations, for FUTURE adding support more than 4 batteries units. PLEASE DO CLEAN ADDON REINSTALL WITH DELETING ADDON DATA for properly work ! Sensors data in this case, will be PRESERVED and NOT loose. Sure - do IP, port, MQTT reconfigure how for clean installation.</br>\
-UPDATE 1.6 - MAJOR UPDATE. API successfuly reworked, now all works over MQTT, not need anymore manual editting configuration.yaml (if you update from previous versions - remove in configuration.yaml all about Ritar batteries REST API ), all statistics from previous REST API sensors will be preserved and NOT disapear. Visit to this addon configuration, for setup MQTT. Restart Homeassistant for properly startup. Entities card examples you still can find by link below. </br>\
-UPDATE 1.5 - added support for up to 4 batteries, more configurable queries delays, example templates updated. </br>\
-UPDATE 1.4 - added WATTmeter charge/discharge power sensor, configurable RS485 connection timeout, configurable queries delay (usualy not need to be ajusted, but let it be), reworked voltage and SOC sensors API annoncement,  example templates updated. </br>\
-UPDATE 1.3 - added Current charge/discharge Ampers sensor, example templates updated with new sensor. </br>\
-UPDATE 1.2 - added MOS and Environment temperature sensors, major bugfixes, stability improvements, reading timeout set over config, example templates updated with new sensors. </br>\
-UPDATE 1.1 - added cells temperature sensors 1-4 for batteries 1-2, example templates updated</br>
+## 🔧 Installation
+
+1. Add this repo to **Home Assistant Add-on Store**  
+   📍 `https://github.com/mamontuka/ritar-bms-ha`
+2. Install the **Ritar BMS Addon**
+3. Open Addon settings:
+   - Set your RS485 Ethernet Gateway IP/Port
+   - Define how many batteries (1–15)
+   - Set your MQTT broker info
+4. Restart addon
+5. Enjoy automatically discovered sensors in Home Assistant!
+
+---
+
+## 🧩 United BMS Framework
+
+Create **your own BMS addon** for other manufacturers  
+🔗 [Read More about United BMS](./README_United_BMS.md)
+
+- [🧰 Standalone version of United BMS Debugger/CLI](https://github.com/mamontuka/ritar-bms-ha/tree/main/united_bms/united_bms_standalone_cli)
+
+---
+
+- [💬 Community Page](https://community.home-assistant.io/t/united-bms-framework/)
+
+---
+
+## ⚙️ Features
+
+- 🔁 RS485 & Serial Communication
+- 📦 Up to 15 battery unit support
+- 🌡 MOS/Environment/Cell temperatures
+- 🔋 SOC, Block Voltage, Current, Power
+- 📉 Graph filtering, spike protection
+- 🧠 EEPROM preset analysis & alerts
+- 🧪 Unified Modbus debugger CLI
+- 📢 MQTT Discovery + HA Integration
+- 🛠 United BMS Framework for custom BMS logic
+
+---
+
+## 🛠 Compatible Inverter Protocols
+
+This addon supports setting inverter protocols via Home Assistant UI:
+
+| Code | Protocol |
+|------|----------|
+| 0  | RITAR_RS485 (RITARV1_8) |
+| 1  | DEYE_RS485 (Deye BMS Protocol 12), PLY(DEYE,SMK,FIRMAN,Hollandia) |
+| 2  | GROWATT_RS485 |
+| 3  | VOLTRONIC_RS485, LIB05(VOLTRONIC,XUNZEL,TESLA,GSB SOLAR,PCE) |
+| 4  | UPOWER_RS485 |
+| 5  | VERTIV_RS485 |
+| 6  | ELTEK_RS485 |
+| 7  | RITAR_MODBUSV1_9_RS485 |
+| 8  | VICTRON_CAN |
+| 9  | RITAR_CAN |
+| 10 | SMA_CAN (Deye Protocol 00) |
+| 11 | MEGAREVO_CAN |
+| 12 | TBB_CAN |
+| 13 | SOLIS_CAN |
+| 14 | INHENERGY_RS485 |
+| 15 | MUST_CAN |
+| 16 | PYON_CAN |
+| 17 | LUXPOWERTEK_RS485 |
+| 18 | PHOCOS_RS485 |
+
+---
+
+## Current version:
+
+## [1.9.7.6]
+Cleanup and rework repository structure, readme files and docs.
+
+## [1.9.7.5]
+Improvements and fixes for introduced **United BMS framework**. Updated logic, fallbacks, now `modbus_battery.py` module also available for custom modification. Feature marked stable, if you use **properly structured** modules templates. Also added protection from zero size modules.
+
+## 🧾 Update History
+
+See [`CHANGELOG.md`](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.
+
