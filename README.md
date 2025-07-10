@@ -3,6 +3,10 @@
 
 ---
 
+**Current version: [1.9.7.6] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
+
+---
+
 ## 🌐 Supported Devices
 
 - ✅ Ritar Power 5KWH / 10KWH / 15KWH models
@@ -103,16 +107,3 @@ This addon supports setting inverter protocols via Home Assistant UI:
 | 18 | PHOCOS_RS485 |
 
 ---
-
-## Current version:
-
-## [1.9.7.6]
-Cleanup and rework repository structure, readme files and docs.
-
-## [1.9.7.5]
-Improvements and fixes for introduced **United BMS framework**. Updated logic, fallbacks, now `modbus_battery.py` module also available for custom modification. Feature marked stable, if you use **properly structured** modules templates. Also added protection from zero size modules.
-
-## 🧾 Update History
-
-See [`CHANGELOG.md`](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.
-
