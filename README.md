@@ -52,7 +52,7 @@
 ## 🧩 United BMS Framework
 
 Create **your own BMS addon** for other manufacturers  
-🔗 [Read More about United BMS](./README_United_BMS.md)
+🔗 [Read More about United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/README.md)
 
 - [🧰 Standalone version of United BMS Debugger/CLI](https://github.com/mamontuka/ritar-bms-ha/tree/main/united_bms/united_bms_standalone_cli)
 
