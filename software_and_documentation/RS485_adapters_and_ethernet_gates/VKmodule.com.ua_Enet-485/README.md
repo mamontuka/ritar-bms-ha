@@ -1,3 +1,4 @@
-https://vkmodule.com.ua/Converter/ConverterENET485.html
+Manufacturer site:
+https://vkmodule.com.ua/Converter/ConverterENET485_ua.html
 
-https://github.com/mamontuka/ritar-bms-ha/blob/main/RS-485_to_ethernet_gate/WIRING.md
+[WIRING SCHEME](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/RS485_adapters_and_ethernet_gates/VKmodule.com.ua_Enet-485/WIRING.md)
