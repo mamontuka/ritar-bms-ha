@@ -88,7 +88,7 @@ def process_extra_temperature(data, temp_min_limit, temp_max_limit):
     
     return mos_valid, env_valid
 
-def filter_temperature_spikes(new_vals, last_vals, temp_min_limit, temp_max_limit, delta_limit=10):
+def filter_temperature_spikes(new_vals, last_vals, temp_min_limit, temp_max_limit, delta_limit=1.0):
     """
     Filter out sudden spikes in temperature readings by comparing new values with previous ones.
     
