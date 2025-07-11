@@ -139,26 +139,45 @@ def handle_battery(
     warnings_enabled=False, console_output_enabled=False
 ):
     """
-    Main function to query a battery using provided Modbus queries,
-    process the data, update cache, optionally print debug info,
-    and publish sensor data via MQTT.
+    Main function to query a battery, parse and validate data, update caches, and publish MQTT sensors.
 
-    Handles missing or partial data gracefully.
+    Args:
+        client: MQTT client instance.
+        index: Battery index to query.
+        queries: Dictionary of Modbus query byte arrays keyed by query name.
+        gateway: Communication gateway object to send/receive Modbus data.
+        model: Battery model string for MQTT device info.
+        zero_pad_cells: Bool indicating if cell indexes in MQTT topics should be zero-padded.
+        queries_delay: Delay in seconds between queries to prevent device overload.
+        cell_min_limit, cell_max_limit: Valid voltage range for individual cells (mV).
+        volt_min_limit, volt_max_limit: Valid voltage range for total battery voltage (V).
+        temp_min_limit, temp_max_limit: Valid temperature range (°C).
+        warnings_enabled: Enable printing warnings/info.
+        console_output_enabled: Enable detailed console logging.
+
+    Returns:
+        Tuple of (mos_temperature, environment_temperature) if available, else (None, None).
+        Returns None if data invalid or skipped.
     """
 
     q = queries[index]
 
     def safe_query(key, expected_len=None):
         """
-        Send a query safely with error handling.
-        If query key is missing, skip and log info.
-        Returns response bytes or None on error.
+        Sends a Modbus query safely with error handling.
+
+        Args:
+            key: Query name to send.
+            expected_len: Expected response length in bytes for validation.
+
+        Returns:
+            Response bytes or None if query fails or missing.
         """
         if key not in q:
             if warnings_enabled:
                 print(f"[INFO] Battery {index} skipping missing query '{key}'")
             return None
-        time.sleep(queries_delay)  # Delay between queries to avoid overwhelming device
+        time.sleep(queries_delay)  # Prevent flooding device with requests
         try:
             gateway.send(q[key])
             response = gateway.recv(expected_len) if expected_len else gateway.recv()
@@ -168,22 +187,26 @@ def handle_battery(
                 print(f"[WARN] Battery {index} {key} read error: {e}")
             return None
 
-    # Perform all queries safely, getting raw data buffers or None
-    bv = safe_query('get_block_voltage', 37)      # Core battery block data
-    cv = safe_query('get_cells_voltage', 37)      # Cells voltage data
-    tv = safe_query('get_temperature', 13)        # Temperature data
-    et = safe_query('get_extra_temperature', 25)  # Extra temperature data
+    # Perform all Modbus queries safely, capturing raw data or None
+    bv = safe_query('get_block_voltage', 37)      # Core battery telemetry
+    cv = safe_query('get_cells_voltage', 37)      # Individual cell voltages
+    tv = safe_query('get_temperature', 13)        # Temperature sensors data
+    et = safe_query('get_extra_temperature', 25)  # Extra temperature info (MOSFET, environment)
 
-    # If core block voltage data is present, parse all data normally
+    # Parse and validate core battery data if block voltage buffer is valid
     if bv is not None:
         data = process_battery_data(index, bv, cv, tv,
                                     cell_min_limit, cell_max_limit,
                                     volt_min_limit, volt_max_limit,
                                     temp_min_limit, temp_max_limit,
                                     warnings_enabled)
+        # If core data invalid, skip processing further to avoid bad data propagation
+        if data is None:
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} skipped due to invalid core data")
+            return None
     else:
-        # If block voltage data missing, still attempt partial processing of
-        # cells and temperature buffers to get some telemetry
+        # No core block data, try partial parsing for cells and temps as fallback
         data = {
             'voltage': None,
             'soc': None,
@@ -193,44 +216,63 @@ def handle_battery(
             'cells': None,
             'temps': None
         }
-        # Validate and parse cells if available
         if valid_len(cv, 37) and cv[0] == index:
             hv = binascii.hexlify(cv).decode()
             raw_cells = [int(hv[6 + 4*i:10 + 4*i], 16) for i in range(16)]
             filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
             if len([v for v in filtered if v is not None]) >= 8:
                 data['cells'] = filtered
-
-        # Validate and parse temperature if available
         if tv is not None and valid_len(tv, 13):
             hx = binascii.hexlify(tv).decode()
             temps = hex_to_temperature(hx)
             data['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
 
-    # If after processing, data is None, skip further steps
-    if data is None:
-        if console_output_enabled:
-            if warnings_enabled:
-                print(f"[WARN] Battery {index} skipped due to invalid data")
-            print("-" * 112)
-        return None
-
-    # Process extra temperature info (e.g. MOSFET, environment temps)
+    # Process extra temperature data such as MOSFET and environmental temps
     mos_t, env_t = None, None
     if et:
         mos_t, env_t = process_extra_temperature(et, temp_min_limit, temp_max_limit)
 
-    # Update caches of last valid values to allow spike filtering later
-    last_valid_voltage[index] = data['voltage']
-    last_valid_current[index] = data['current']
-    last_valid_power[index] = data['power']
+    # Helper to validate numeric values before caching and publishing
+    def is_valid_number(val, minv=None, maxv=None):
+        if val is None or not isinstance(val, (int, float)):
+            return False
+        if minv is not None and val < minv:
+            return False
+        if maxv is not None and val > maxv:
+            return False
+        return True
 
-    if data['soc'] is not None and 0 <= data['soc'] <= 100:
+    # Cache last valid voltage if valid, else fallback to previous cached value
+    if is_valid_number(data['voltage'], volt_min_limit, volt_max_limit):
+        last_valid_voltage[index] = data['voltage']
+    else:
+        data['voltage'] = last_valid_voltage.get(index)
+
+    # Cache last valid current similarly
+    if is_valid_number(data['current']):
+        last_valid_current[index] = data['current']
+    else:
+        data['current'] = last_valid_current.get(index)
+
+    # Cache last valid power similarly
+    if is_valid_number(data['power']):
+        last_valid_power[index] = data['power']
+    else:
+        data['power'] = last_valid_power.get(index)
+
+    # Cache last valid SOC if valid
+    if is_valid_number(data['soc'], 0, 100):
         last_valid_soc[index] = data['soc']
+    else:
+        data['soc'] = last_valid_soc.get(index)
+
+    # Cache last valid cycle count if integer
     if isinstance(data['cycle'], int):
         last_valid_cycle_count[index] = data['cycle']
+    else:
+        data['cycle'] = last_valid_cycle_count.get(index)
 
-    # Optional debug printing of battery data
+    # Optional console output for debugging battery data
     if console_output_enabled:
         print(f"Battery {index} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
         if data['cells']:
@@ -241,7 +283,7 @@ def handle_battery(
             print(f"Battery {index} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
         print("-" * 112)
 
-    # === Skip publish if only partial/no useful data ===
+    # Skip publishing if no core data and no cells/temps present
     if all(data[k] is None for k in ['voltage', 'soc', 'current', 'power', 'cycle']):
         if not (data['cells'] or data['temps'] or (mos_t is not None and env_t is not None)):
             if warnings_enabled:
