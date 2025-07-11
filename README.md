@@ -11,7 +11,7 @@
 
 - ✅ Ritar Power 5KWH / 10KWH / 15KWH models
 - ✅ Partial support: YHI Energy, Hollandia Power
-- ✅ Others via [United BMS](#-united-bms-framework)
+- ✅ Others via [United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/README.md)
 
 ---
 
@@ -58,6 +58,7 @@
 Create **your own BMS addon** for other manufacturers  
 🔗 [Read More about United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/README.md)
 
+- [🔋 Supported Batteries](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/README.md)
 - [🧰 Standalone version of United BMS Debugger/CLI](https://github.com/mamontuka/ritar-bms-ha/tree/main/united_bms/united_bms_standalone_cli)
 
 ---
