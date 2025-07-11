@@ -4,6 +4,9 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.7.8]
+Fixed and improved logic of the _parser_battery_ module. Fixed typo in the _parser_temperatures_ module.
+
 ## [1.9.7.6]
 Cleanup and rework repository structure, readme files and docs.
 
