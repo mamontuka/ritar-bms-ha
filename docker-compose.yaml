@@ -5,8 +5,10 @@ services:
       context: .
     restart: unless-stopped
     privileged: true
+    ports:
+      - "2222:2222"
     volumes:
-      - ./config.yaml:/workdir/config.yaml
+      - ./config.yaml:/united_bms_core/config.yaml
       - ${PWD}/united_bms:/united_bms
       - /dev:/dev
     devices:
