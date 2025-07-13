@@ -4,6 +4,15 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.8]
+### ⚙️ Container Update & New Debugger Feature
+
+- Switched the base image from **Alpine** to **Debian** for better compatibility and extensibility.
+- Refactored container structure for improved maintainability and easier customization.
+- Introduced a **built-in interactive debugger** for the United BMS framework, accessible via SSH inside the container - [**READ MORE**](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_ssh_cli/README.md)
+
+        This update lays the foundation for more powerful diagnostics and development tools in future releases.
+
 ## [1.9.7.8]
 Fixed and improved logic of the _parser_battery_ module. Fixed typo in the _parser_temperatures_ module.
 
