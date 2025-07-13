@@ -1,4 +1,4 @@
-# United BMS debugger/commandline tool
+# Standalone United BMS debugger/commandline tool
 
 ## "--write" option USE AT OWN RISK ! THAT OPTION CAN DAMAGE YOUR EQUIPMENT !
 
