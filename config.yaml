@@ -6,6 +6,8 @@ url: "https://github.com/mamontuka/ritar-bms-ha"
 init: false
 uart: true
 usb: true
+ports:
+  2222/tcp: 2222
 map:
   - addon_config:rw
   - config:rw
@@ -38,6 +40,7 @@ options:
   warnings_enabled: false
   enable_modbus_inverter: true
   enable_modbus_eeprom: true
+  enable_debug_shell: false
 schema:
   connection_type: list(ethernet|serial)
   rs485gate_ip: str
@@ -59,3 +62,4 @@ schema:
   warnings_enabled: bool
   enable_modbus_inverter: bool
   enable_modbus_eeprom: bool
+  enable_debug_shell: bool
