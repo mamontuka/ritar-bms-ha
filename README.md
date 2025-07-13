@@ -59,6 +59,7 @@ Create **your own BMS addon** for other manufacturers
 🔗 [Read More about United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/README.md)
 
 - [🔋 Supported Batteries](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/README.md)
+- [🧰 Embedded United BMS Debugger/CLI](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_ssh_cli/README.md)
 - [🧰 Standalone version of United BMS Debugger/CLI](https://github.com/mamontuka/ritar-bms-ha/tree/main/united_bms/united_bms_standalone_cli)
 
 ---
