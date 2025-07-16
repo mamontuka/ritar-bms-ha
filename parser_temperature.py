@@ -1,6 +1,7 @@
 # parser_temperature.py
 
 import binascii
+from statistics import median  # <-- ADDED: for robust filtering using median
 
 def valid_len(buf, length):
     """
@@ -94,8 +95,8 @@ def filter_temperature_spikes(new_vals, last_vals, temp_min_limit, temp_max_limi
     
     For each temperature value:
     - If value is None or out of specified min/max bounds, returns None.
-    - If the difference between new and last value exceeds delta_limit, retains last stable value.
-    - Otherwise, accepts new value.
+    - If the difference between new value and recent median exceeds delta_limit, use last stable value.
+    - Otherwise, accept new value.
     
     Args:
         new_vals (list of float or None): Latest temperature readings.
@@ -108,17 +109,30 @@ def filter_temperature_spikes(new_vals, last_vals, temp_min_limit, temp_max_limi
         list of float or None: Filtered temperature readings with spikes suppressed.
     """
     filtered = []
+
     for i, val in enumerate(new_vals):
-        # Reject if None or out of valid temperature range
         if val is None or not (temp_min_limit <= val <= temp_max_limit):
             filtered.append(None)
-        # If last value exists and difference is too big, reject new value as spike
-        elif i < len(last_vals):
-            if abs(val - last_vals[i]) > delta_limit:
-                filtered.append(last_vals[i])  # keep previous stable value
-            else:
-                filtered.append(val)  # accept new value
-        else:
-            # No previous value to compare, accept new
+            continue
+
+        if not last_vals:
+            # No history, accept new value
             filtered.append(val)
+            continue
+
+        # Compute median of last N values
+        valid_history = [v for v in last_vals if v is not None]
+        if not valid_history:
+            filtered.append(val)
+            continue
+
+        median_val = median(valid_history)
+
+        # Check if new value is within allowed delta
+        if abs(val - median_val) > delta_limit:
+            # Reject spike, reuse last value if available
+            filtered.append(last_vals[-1] if last_vals[-1] is not None else None)
+        else:
+            filtered.append(val)
+
     return filtered
