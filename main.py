@@ -9,6 +9,8 @@ import paho.mqtt.client as mqtt  # MQTT client library
 # === Local modules ===
 import main_console                            # Console output utilities
 from modbus_gateway import ModbusGateway       # Abstraction for Modbus communication gateway
+from statistics import median                  # used in filter_spikes for robustness
+
 
 # --- Main script entry point ---
 if __name__ == '__main__':
@@ -35,6 +37,7 @@ if __name__ == '__main__':
 
     # Dynamically load override modules if user provided custom versions
     main_settings = try_import_custom_module("main_settings", custom_dir)
+    delta_filter = getattr(main_settings, "delta_filter", {})
     modbus_registers = try_import_custom_module("modbus_registers", custom_dir)
     modbus_battery = try_import_custom_module("modbus_battery", custom_dir)
     parser_battery = try_import_custom_module("parser_battery", custom_dir)
@@ -70,7 +73,16 @@ if __name__ == '__main__':
         history_len,
         pause_polling_until
     )
-    
+
+    # --- ADDED: ensure we use per-battery history for filtering ---
+    from collections import defaultdict
+
+    # Override global lists with per-battery history (defaultdict)
+    if not isinstance(last_n_socs, defaultdict):
+        last_n_socs = defaultdict(list)
+    if not isinstance(last_n_voltages, defaultdict):
+        last_n_voltages = defaultdict(list)
+
     # Safely get optional functions from modules, they might be missing
     filter_spikes = get_optional_attr(parser_battery, "filter_spikes")
     handle_battery = get_optional_attr(parser_battery, "handle_battery")
@@ -231,23 +243,32 @@ if __name__ == '__main__':
                     console_output_enabled=console_output_enabled
                 ) or (None, None)
 
-                # --- SOC spike filtering ---
+                # --- SOC spike filtering using per-battery history ---
                 if filter_spikes and i in last_valid_soc:
-                    filtered_soc = filter_spikes(last_valid_soc[i], last_n_socs, max_delta=5)
+                    filtered_soc = filter_spikes(
+                        last_valid_soc[i],
+                        last_n_socs[i],
+                        max_delta=delta_filter.get("soc", 5)
+                    )
                     if filtered_soc is not None:
-                        last_n_socs.append(filtered_soc)
-                        if len(last_n_socs) > history_len:
-                            last_n_socs.pop(0)
+                        last_n_socs[i].append(filtered_soc)
+                        if len(last_n_socs[i]) > history_len:
+                            last_n_socs[i].pop(0)
                         valid_socs.append(filtered_soc)
 
-                # --- Voltage spike filtering ---
+                # --- Voltage spike filtering using per-battery history ---
                 if filter_spikes and i in last_valid_voltage:
-                    filtered_voltage = filter_spikes(last_valid_voltage[i], last_n_voltages, max_delta=2.0)
+                    filtered_voltage = filter_spikes(
+                        last_valid_voltage[i],
+                        last_n_voltages[i],
+                        max_delta=delta_filter.get("voltage", 1.0)
+                    )
                     if filtered_voltage is not None:
-                        last_n_voltages.append(filtered_voltage)
-                        if len(last_n_voltages) > history_len:
-                            last_n_voltages.pop(0)
+                        last_n_voltages[i].append(filtered_voltage)
+                        if len(last_n_voltages[i]) > history_len:
+                            last_n_voltages[i].pop(0)
                         valid_voltages.append(filtered_voltage)
+
 
                 # --- Accumulate current and power for summary ---
                 current = last_valid_current.get(i)
@@ -264,7 +285,8 @@ if __name__ == '__main__':
                     filtered_mos_list = filter_temperature_spikes(
                         [mos_t], last_n_mos[i],
                         main_settings.temp_min_limit, main_settings.temp_max_limit,
-                        delta_limit=2.0
+                        delta_limit=delta_filter.get("mos_temperature", 1.0)
+
                     )
                     filtered_mos = filtered_mos_list[0]
                     if filtered_mos is not None:
@@ -280,7 +302,8 @@ if __name__ == '__main__':
                     filtered_env_list = filter_temperature_spikes(
                         [env_t], last_n_env[i],
                         main_settings.temp_min_limit, main_settings.temp_max_limit,
-                        delta_limit=2.0
+                        delta_limit=delta_filter.get("env_temperature", 1.0)
+
                     )
                     filtered_env = filtered_env_list[0]
                     if filtered_env is not None:
