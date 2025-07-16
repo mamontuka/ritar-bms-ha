@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.8.3]
+
+Still fighting against publishing defective values on charts. Filtering logic has been improved once again. Filtering deltas have been moved to the main_settings module and are now also available for customization.
+
 ## [1.9.8]
 ### ⚙️ Container Update & New Debugger Feature
 
