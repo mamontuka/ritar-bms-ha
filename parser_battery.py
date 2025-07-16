@@ -3,6 +3,8 @@
 import time
 import binascii
 
+from statistics import median   # used in improved spike filter
+
 from parser_temperature import (
     hex_to_temperature,         # Function to convert hex string to temperature values
     valid_len,                  # Helper to check if buffer length is valid
@@ -23,19 +25,21 @@ from main_arrays import (
 def filter_spikes(new_value, last_values, max_delta):
     """
     Filter out spikes in sensor data that differ too much from recent history.
-    If no history, accept new_value. If difference exceeds max_delta, return average of last_values.
-    Otherwise, return new_value as valid.
+
+    If no history, accept new_value.
+    If deviation from median of last_values is above max_delta, return previous stable median.
+    Otherwise, return new_value.
     """
     if new_value is None:
         return None
     if not last_values:
         return new_value
-    last_avg = sum(last_values) / len(last_values)
-    if abs(new_value - last_avg) > max_delta:
-        return last_avg
+    last_median = median(last_values)  # <-- MODIFIED: use median instead of average
+    if abs(new_value - last_median) > max_delta:
+        return last_median  # <-- MODIFIED: return stable value instead of rejecting entirely
     return new_value
 
-
+# === Parse incoming battery data ===
 def process_battery_data(index, block_buf, cells_buf, temp_buf,
                          cell_min_limit, cell_max_limit,
                          volt_min_limit, volt_max_limit,
@@ -130,7 +134,7 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf,
 
     return result
 
-
+# === Main Battery worker ===
 def handle_battery(
     client, index, queries, gateway, model, zero_pad_cells, queries_delay,
     cell_min_limit, cell_max_limit,
