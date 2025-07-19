@@ -1,11 +1,11 @@
 # main_settings.py
 
 # === Static limits ===
-cell_min_limit = 2450
-cell_max_limit = 4750
+cell_min_limit = 2700
+cell_max_limit = 4700
 
-volt_min_limit = 40.00
-volt_max_limit = 60.00
+volt_min_limit = 44.50
+volt_max_limit = 58.50
 
 temp_min_limit = -20
 temp_max_limit = 55
