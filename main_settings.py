@@ -40,12 +40,12 @@ PAD_STATE_PATH = "/data/last_pad_state.json"
 # These define how much a value must change before it's considered "new"
 
 delta_filter = {
-    'voltage': 0.1,           # V
-    'current': 0.1,           # A
+    'voltage': 1.0,           # V
+    'current': 1.0,           # A
     'power': 1.0,             # W
     'temperature': 1.0,       # °C
     'mos_temperature': 1.0,   # °C
     'env_temperature': 1.0,   # °C
-    'soc': 1.0,               # %
+    'soc': 2.0,               # %
     'cycle': 1                # cycles
 }
