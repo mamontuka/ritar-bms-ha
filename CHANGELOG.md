@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.8.5]
+
+Fixed incorrect calculation of average values in the ESS device, for multi-battery installations - in the main_settings module, set coarser values for delta filtering by default. We are looking for a balance between garbage on the graphs and adequate readings.
+
 ## [1.9.8.4]
 
 Fixed basic parameters for calculating filtering values in the _main_settings_ module. The default **configuration** parameter _next_battery_delay_ has been increased to **1 second** to reduce the chance of incorrect SOC and unit voltage values appearing on the graphs in multi-battery installations (**it is recommended to increase it from the previous default of 0.5 seconds to 1 second if you have not made fine-tuning and are using default values**).
