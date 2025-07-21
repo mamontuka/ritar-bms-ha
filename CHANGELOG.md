@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.8.6]
+
+Fix for ESS units total voltage filtering delta. Commenting out _main_settings_ and _main_arrays_ modules.
+
 ## [1.9.8.5]
 
 Fixed incorrect calculation of average values in the ESS device, for multi-battery installations - in the main_settings module, set coarser values for delta filtering by default. We are looking for a balance between garbage on the graphs and adequate readings.
