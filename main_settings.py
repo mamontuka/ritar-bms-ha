@@ -60,7 +60,7 @@ PAD_STATE_PATH = "/data/last_pad_state.json"    # Path to persistent file storin
 # Tune carefully depending on how much precision vs. performance you want.
 
 delta_filter = {
-    'voltage': 2.0,           # Minimum voltage change (V) required to trigger an update
+    'voltage': 1.8,           # Minimum voltage change (V) required to trigger an update
     'current': 1.0,           # Minimum current change (A) to trigger an update
     'power': 1.0,             # Minimum power change (W) to trigger an update
     'temperature': 1.0,       # Minimum change in cell temperature (°C)
