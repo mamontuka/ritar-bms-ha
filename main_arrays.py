@@ -18,7 +18,7 @@ last_n_voltages = defaultdict(list)   # Voltage history for each battery
 last_n_env = {}  # Environmental/ambient temperature readings
 last_n_mos = {}  # MOSFET temperature readings
 
-history_len = 20  # Maximum number of recent values to keep per sensor, per battery
+history_len = 30  # Maximum number of recent values to keep per sensor, per battery
 # Used to compute moving averages or detect sudden anomalies (spikes, dropouts)
 
 # === Persistent fallback cache ===
