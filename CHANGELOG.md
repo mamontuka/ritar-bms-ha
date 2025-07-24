@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.8.8]
+
+Still catching and fine tuning values in _main_settings_ and _main_arrays_ modules. About spikedowns in multibattery installations.
+
 ## [1.9.8.7]
 
 Again patching _main_settings_ and _main_arrays_ modules.
