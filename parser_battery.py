@@ -19,6 +19,9 @@ from main_arrays import (
     last_valid_power,
     last_valid_soc,
     last_valid_cycle_count,
+    # Added for spike filtering history:
+    last_n_voltages,
+    last_n_socs,
 )
 
 # === Spike filter helper ===
@@ -235,6 +238,25 @@ def handle_battery(
     mos_t, env_t = None, None
     if et:
         mos_t, env_t = process_extra_temperature(et, temp_min_limit, temp_max_limit)
+
+    # --- Added filtering of sudden spikes in voltage and SOC ---
+
+    max_delta_voltage = 2.0
+    max_delta_soc = 3.0
+
+    filtered_voltage = filter_spikes(data['voltage'], last_n_voltages[index], max_delta_voltage)
+    if filtered_voltage is not None:
+        data['voltage'] = filtered_voltage
+        last_n_voltages[index].append(filtered_voltage)
+        if len(last_n_voltages[index]) > 10:
+            last_n_voltages[index].pop(0)
+
+    filtered_soc = filter_spikes(data['soc'], last_n_socs[index], max_delta_soc)
+    if filtered_soc is not None:
+        data['soc'] = filtered_soc
+        last_n_socs[index].append(filtered_soc)
+        if len(last_n_socs[index]) > 10:
+            last_n_socs[index].pop(0)
 
     # Helper to validate numeric values before caching and publishing
     def is_valid_number(val, minv=None, maxv=None):
