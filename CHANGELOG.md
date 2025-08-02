@@ -4,6 +4,13 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.8.9]
+
+- Added spike filtering to suppress sudden jumps in **voltage** and **state of charge (SOC)** readings for all batteries.
+- Implemented median-based filtering comparing new values against recent history to improve telemetry stability.
+- Applied configurable maximum allowed deltas (`2.0` for voltage, `3.0` for SOC) to detect and reject spikes.
+- Fixed erratic voltage and SOC spikes previously observed, now uniformly handled for all batteries.
+
 ## [1.9.8.8]
 
 Still catching and fine tuning values in _main_settings_ and _main_arrays_ modules. About spikedowns in multibattery installations.
