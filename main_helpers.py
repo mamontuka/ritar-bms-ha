@@ -7,6 +7,7 @@ import yaml
 import shutil
 import warnings
 import importlib.util
+from statistics import median
 from main_settings import PAD_STATE_PATH
 
 # === Suppress deprecation warnings globally ===
@@ -137,3 +138,31 @@ def get_optional_attr(module, attr_name, default=None, warn_if_missing=True):
         if warn_if_missing:
             print(f"[WARN] Module '{module.__name__}' does not have attribute '{attr_name}'")
         return default
+
+# === Spike filter helper ===
+def filter_spikes(new_value, last_values, max_delta):
+    """
+    Filter out spikes in sensor data that differ too much from recent history.
+
+    If no history, accept new_value.
+    If deviation from median of last_values is above max_delta, return previous stable median.
+    Otherwise, return new_value.
+    """
+    if new_value is None:
+        return None
+    if not last_values:
+        return new_value
+    last_median = median(last_values)  # use median
+    if abs(new_value - last_median) > max_delta:
+        return last_median  # return stable value instead of rejecting entirely
+    return new_value
+
+# === Helper to validate numeric values before caching and publishing ===
+def is_valid_number(val, minv=None, maxv=None):
+    if val is None or not isinstance(val, (int, float)):
+        return False
+    if minv is not None and val < minv:
+        return False
+    if maxv is not None and val > maxv:
+        return False
+    return True
