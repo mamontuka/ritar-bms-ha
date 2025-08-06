@@ -1,5 +1,3 @@
-# parser_battery.py
-
 import time
 import binascii
 
@@ -19,28 +17,12 @@ from main_arrays import (
     last_valid_power,
     last_valid_soc,
     last_valid_cycle_count,
-    # Added for spike filtering history:
     last_n_voltages,
     last_n_socs,
 )
 
-# === Spike filter helper ===
-def filter_spikes(new_value, last_values, max_delta):
-    """
-    Filter out spikes in sensor data that differ too much from recent history.
-
-    If no history, accept new_value.
-    If deviation from median of last_values is above max_delta, return previous stable median.
-    Otherwise, return new_value.
-    """
-    if new_value is None:
-        return None
-    if not last_values:
-        return new_value
-    last_median = median(last_values)  # <-- MODIFIED: use median instead of average
-    if abs(new_value - last_median) > max_delta:
-        return last_median  # <-- MODIFIED: return stable value instead of rejecting entirely
-    return new_value
+from main_settings import spike_filter_delta, delta_filter
+from main_helpers import filter_spikes, is_valid_number
 
 # === Parse incoming battery data ===
 def process_battery_data(index, block_buf, cells_buf, temp_buf,
@@ -57,7 +39,7 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf,
     Returns a dict with parsed and filtered data, or None if core data is invalid.
     """
 
-    # Initialize result dictionary with None values
+    # Initialize result dictionary with None values for all expected battery metrics
     result = {
         'voltage': None,
         'soc': None,
@@ -68,15 +50,16 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf,
         'temps': None
     }
 
+    # Check if the main data block buffer has the expected length (37 bytes)
     if valid_len(block_buf, 37):
-        # Convert bytes to hex string for easier slicing
+        # Convert raw bytes to hex string for easier field extraction
         hb = binascii.hexlify(block_buf).decode()
 
-        # Parse current (2 bytes), signed integer (16-bit)
+        # Parse current (2 bytes), signed integer (16-bit, two's complement)
         cur_raw = int(hb[6:10], 16)
-        if cur_raw >= 0x8000:  # Adjust for 2's complement negative numbers
+        if cur_raw >= 0x8000:  # Adjust negative values due to two's complement encoding
             cur_raw -= 0x10000
-        current = round(cur_raw / 100, 2)
+        current = round(cur_raw / 100, 2)  # Scale current to Amps with two decimals
 
         # Parse voltage (2 bytes), unsigned integer scaled by 100
         voltage = round(int(hb[10:14], 16) / 100, 2)
@@ -84,13 +67,13 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf,
         # Parse SOC (state of charge) (2 bytes), scaled by 10
         soc = round(int(hb[14:18], 16) / 10, 1)
 
-        # Parse cycle count (2 bytes)
+        # Parse cycle count (2 bytes), total charge/discharge cycles
         cycle = int(hb[34:38], 16)
 
-        # Calculate power as voltage * current
+        # Calculate power as voltage multiplied by current
         power = round(current * voltage, 2)
 
-        # Validate values against configured static limits
+        # Validate values against configured static limits to filter out invalid/outlier data
         if not (volt_min_limit <= voltage <= volt_max_limit):
             if warnings_enabled:
                 print(f"[WARN] Battery {index} skipped due to invalid voltage: {voltage} , its OK, casual Modbus lags")
@@ -99,43 +82,44 @@ def process_battery_data(index, block_buf, cells_buf, temp_buf,
             if warnings_enabled:
                 print(f"[WARN] Battery {index} skipped due to invalid SOC: {soc}")
             return None
-        if abs(current) > 150:  # Current spike filter
+        if abs(current) > 150:  # Current spike filter threshold to catch unrealistic spikes
             if warnings_enabled:
                 print(f"[WARN] Battery {index} skipped due to current spike: {current}")
             return None
-        if abs(power) > 8000:  # Power anomaly filter
+        if abs(power) > 8000:  # Power anomaly filter threshold
             if warnings_enabled:
                 print(f"[WARN] Battery {index} skipped due to power anomaly: {power}")
             return None
 
-        # Update result with validated core metrics
+        # Update result dict with validated core telemetry data
         result.update({'current': current, 'voltage': voltage, 'soc': soc, 'cycle': cycle, 'power': power})
 
     else:
-        # If block_buf is missing or invalid, do NOT immediately return None.
-        # We want to continue processing cells and temps if available.
-        # So just pass here and leave core fields None.
+        # If block_buf is missing or invalid length,
+        # do NOT return None immediately because partial data may still be processed
+        # Continue with cells and temperature processing
         pass
 
-    # Process cell voltages if buffer valid and matches battery index
+    # Process cell voltages if buffer is valid and matches the battery index
     if valid_len(cells_buf, 37) and cells_buf[0] == index:
         hv = binascii.hexlify(cells_buf).decode()
-        # Extract 16 cell voltages (2 bytes each)
+        # Extract 16 cell voltages from buffer (each 2 bytes)
         raw_cells = [int(hv[6 + 4*i:10 + 4*i], 16) for i in range(16)]
-        # Filter cells to only valid voltages within configured range, else None
+        # Filter cell voltages: keep only values within valid range, else None
         filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
-        # Require at least 8 valid cells to consider valid data
+        # Require at least 8 valid cells to consider the cell data trustworthy
         if len([v for v in filtered if v is not None]) >= 8:
             result['cells'] = filtered
 
-    # Process temperature buffer if valid
+    # Process temperature data if buffer length is valid
     if valid_len(temp_buf, 13):
         hx = binascii.hexlify(temp_buf).decode()
         temps = hex_to_temperature(hx)
-        # Filter temps within configured limits
+        # Filter temperature readings to be within configured valid range
         result['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
 
     return result
+
 
 # === Main Battery worker ===
 def handle_battery(
@@ -169,6 +153,7 @@ def handle_battery(
 
     q = queries[index]
 
+    # Helper function to send Modbus queries safely and handle errors gracefully
     def safe_query(key, expected_len=None):
         """
         Sends a Modbus query safely with error handling.
@@ -184,7 +169,7 @@ def handle_battery(
             if warnings_enabled:
                 print(f"[INFO] Battery {index} skipping missing query '{key}'")
             return None
-        time.sleep(queries_delay)  # Prevent flooding device with requests
+        time.sleep(queries_delay)  # Prevent flooding the device with requests
         try:
             gateway.send(q[key])
             response = gateway.recv(expected_len) if expected_len else gateway.recv()
@@ -194,11 +179,11 @@ def handle_battery(
                 print(f"[WARN] Battery {index} {key} read error: {e}")
             return None
 
-    # Perform all Modbus queries safely, capturing raw data or None
-    bv = safe_query('get_block_voltage', 37)      # Core battery telemetry
+    # Perform all required Modbus queries safely and collect raw response data
+    bv = safe_query('get_block_voltage', 37)      # Core battery telemetry data
     cv = safe_query('get_cells_voltage', 37)      # Individual cell voltages
     tv = safe_query('get_temperature', 13)        # Temperature sensors data
-    et = safe_query('get_extra_temperature', 25)  # Extra temperature info (MOSFET, environment)
+    et = safe_query('get_extra_temperature', 25)  # Extra temperature data (e.g., MOSFET and environment)
 
     # Parse and validate core battery data if block voltage buffer is valid
     if bv is not None:
@@ -213,7 +198,7 @@ def handle_battery(
                 print(f"[WARN] Battery {index} skipped due to invalid core data")
             return None
     else:
-        # No core block data, try partial parsing for cells and temps as fallback
+        # No core block data available, attempt partial parsing of cells and temperatures as fallback
         data = {
             'voltage': None,
             'soc': None,
@@ -223,26 +208,27 @@ def handle_battery(
             'cells': None,
             'temps': None
         }
+        # Process cells if valid buffer present
         if valid_len(cv, 37) and cv[0] == index:
             hv = binascii.hexlify(cv).decode()
             raw_cells = [int(hv[6 + 4*i:10 + 4*i], 16) for i in range(16)]
             filtered = [v if cell_min_limit <= v <= cell_max_limit else None for v in raw_cells]
             if len([v for v in filtered if v is not None]) >= 8:
                 data['cells'] = filtered
+        # Process temps if valid buffer present
         if tv is not None and valid_len(tv, 13):
             hx = binascii.hexlify(tv).decode()
             temps = hex_to_temperature(hx)
             data['temps'] = [t for t in temps if temp_min_limit <= t <= temp_max_limit]
 
-    # Process extra temperature data such as MOSFET and environmental temps
+    # Process additional temperature data such as MOSFET and environmental sensors
     mos_t, env_t = None, None
     if et:
         mos_t, env_t = process_extra_temperature(et, temp_min_limit, temp_max_limit)
 
-    # --- Added filtering of sudden spikes in voltage and SOC ---
-
-    max_delta_voltage = 2.0
-    max_delta_soc = 3.0
+    # Filter sudden spikes in voltage and SOC readings to reduce noise/artifacts
+    max_delta_voltage = spike_filter_delta['voltage']
+    max_delta_soc = spike_filter_delta['soc']
 
     filtered_voltage = filter_spikes(data['voltage'], last_n_voltages[index], max_delta_voltage)
     if filtered_voltage is not None:
@@ -258,17 +244,7 @@ def handle_battery(
         if len(last_n_socs[index]) > 10:
             last_n_socs[index].pop(0)
 
-    # Helper to validate numeric values before caching and publishing
-    def is_valid_number(val, minv=None, maxv=None):
-        if val is None or not isinstance(val, (int, float)):
-            return False
-        if minv is not None and val < minv:
-            return False
-        if maxv is not None and val > maxv:
-            return False
-        return True
-
-    # Cache last valid voltage if valid, else fallback to previous cached value
+    # Cache last valid voltage or fallback to previously cached value for stability
     if is_valid_number(data['voltage'], volt_min_limit, volt_max_limit):
         last_valid_voltage[index] = data['voltage']
     else:
@@ -286,19 +262,19 @@ def handle_battery(
     else:
         data['power'] = last_valid_power.get(index)
 
-    # Cache last valid SOC if valid
+    # Cache last valid SOC or fallback
     if is_valid_number(data['soc'], 0, 100):
         last_valid_soc[index] = data['soc']
     else:
         data['soc'] = last_valid_soc.get(index)
 
-    # Cache last valid cycle count if integer
+    # Cache last valid cycle count if it is an integer, else fallback
     if isinstance(data['cycle'], int):
         last_valid_cycle_count[index] = data['cycle']
     else:
         data['cycle'] = last_valid_cycle_count.get(index)
 
-    # Optional console output for debugging battery data
+    # Optional debug output to console with detailed battery telemetry
     if console_output_enabled:
         print(f"Battery {index} SOC: {data['soc']} %, Voltage: {data['voltage']} V, Cycles: {data['cycle']}, Current: {data['current']} A, Power: {data['power']} W")
         if data['cells']:
@@ -309,14 +285,14 @@ def handle_battery(
             print(f"Battery {index} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
         print("-" * 112)
 
-    # Skip publishing if no core data and no cells/temps present
+    # If no valid core data and no cells or temps, skip publishing to avoid empty MQTT updates
     if all(data[k] is None for k in ['voltage', 'soc', 'current', 'power', 'cycle']):
         if not (data['cells'] or data['temps'] or (mos_t is not None and env_t is not None)):
             if warnings_enabled:
                 print(f"[WARN] Battery {index} has no valid data, skipping publish")
             return None
 
-    # Publish all collected sensor data via MQTT
+    # Publish all collected and filtered sensor data to MQTT broker
     publish_sensors(client, index, data, mos_t, env_t, model, zero_pad_cells)
 
     return mos_t, env_t
