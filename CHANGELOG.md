@@ -4,6 +4,15 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.9]
+
+- Added comments to improve code readability in **parser_battery.py**.  
+- Clarified parameters, return values, and main data structures in battery parsing and handling functions.  
+- Explained spike filtering logic and data validation steps, including role of `filter_spikes`.  
+- Enhanced comments on Modbus query handling and exception catching blocks.  
+- Refactored helper functions by moving some from **parser_battery.py** to **main_helpers.py** for better code organization.  
+- Updated usage of constants in **main_settings.py** related to spike filtering and thresholds.
+
 ## [1.9.8.9]
 
 - Added spike filtering to suppress sudden jumps in **voltage** and **state of charge (SOC)** readings for all batteries.
