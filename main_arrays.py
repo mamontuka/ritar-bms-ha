@@ -1,25 +1,23 @@
 # main_arrays.py
 
+# === History and smoothing buffers ===
+from collections import defaultdict    # Used for dynamically managing history per battery index
+from main_settings import history_len  # Maximum number of recent values to keep per sensor, per battery
+# Used to compute moving averages or detect sudden anomalies (spikes, dropouts)
+
 # === Polling throttle flag ===
 # Global timestamp (in seconds since epoch) indicating when polling is allowed to resume.
 # Used to temporarily pause polling (e.g., in case of connection errors or timeouts).
 pause_polling_until = 0
 
-# === History and smoothing buffers ===
-from collections import defaultdict  # Used for dynamically managing history per battery index
-
 # Per-battery history buffers for smoothing and spike filtering
 # These are short-term rolling arrays used to detect and suppress data glitches or noise.
-
 last_n_socs = defaultdict(list)       # State of Charge (SOC) history for each battery
 last_n_voltages = defaultdict(list)   # Voltage history for each battery
 
 # Temperature history per battery, stored separately for:
 last_n_env = {}  # Environmental/ambient temperature readings
 last_n_mos = {}  # MOSFET temperature readings
-
-history_len = 30  # Maximum number of recent values to keep per sensor, per battery
-# Used to compute moving averages or detect sudden anomalies (spikes, dropouts)
 
 # === Persistent fallback cache ===
 # These dictionaries store the last known *valid* value for each sensor, per battery.
