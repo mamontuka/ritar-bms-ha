@@ -14,6 +14,9 @@ volt_max_limit = 58.50        # Maximum allowed total pack voltage (in volts)
 temp_min_limit = -20          # Minimum allowed temperature for battery operation (in degrees Celsius)
 temp_max_limit = 55           # Maximum allowed temperature for battery operation (in degrees Celsius)
 
+# History length for smoothing/filtering buffers (number of recent values kept per sensor per battery)
+history_len = 30
+
 # === MQTT Device Info ===
 # These constants define MQTT topic templates and metadata used in Home Assistant autodiscovery.
 # Templates support multi-battery setups by dynamically inserting the battery index and sensor type.
@@ -60,7 +63,7 @@ PAD_STATE_PATH = "/data/last_pad_state.json"    # Path to persistent file storin
 # Tune carefully depending on how much precision vs. performance you want.
 
 delta_filter = {
-    'voltage': 1.5,           # Minimum voltage change (V) required to trigger an update
+    'voltage': 2.0,           # Minimum voltage change (V) required to trigger an update
     'current': 1.0,           # Minimum current change (A) to trigger an update
     'power': 1.0,             # Minimum power change (W) to trigger an update
     'temperature': 1.0,       # Minimum change in cell temperature (°C)
@@ -68,4 +71,10 @@ delta_filter = {
     'env_temperature': 1.0,   # Minimum change in ambient/environment temperature (°C)
     'soc': 2.0,               # Minimum state-of-charge (%) change required
     'cycle': 1                # Battery cycle count must increase by this value to trigger an update
+}
+
+# === Spike filter thresholds for raw data validation ===
+spike_filter_delta = {
+    'voltage': 2.0,           # Max allowed sudden jump in voltage before filtering spike
+    'soc': 3.0                # Max allowed sudden jump in SOC before filtering spike
 }
