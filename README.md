@@ -10,7 +10,7 @@
 ## 🌐 Supported Devices
 
 - ✅ Ritar Power 5KWH / 10KWH / 15KWH models
-- ✅ Partial support: YHI Energy, Hollandia Power
+- ✅ Partial support: YHI Energy, Hollandia Power, [Predator](https://www.reddit.com/r/SolarDIY/comments/1lbz5dk/inside_a_ritar_xplfp48v100ah_predator/)
 - ✅ Others via [United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/README.md)
 
 ---
