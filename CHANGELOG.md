@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+### [1.9.9.1]
+- **Dockerfile:** Removed DSS key generation for Dropbear to fix build errors.
+- **mqtt_core.py:** Adjusted spike filtering logic for cycles and temperatures to improve data accuracy.
+
 ## [1.9.9]
 
 - Added comments to improve code readability in **parser_battery.py**.  
