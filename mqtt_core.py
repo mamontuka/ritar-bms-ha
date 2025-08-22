@@ -108,7 +108,7 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
 
         publish_sensor(client, cfg_topic, state_topic, cfg, value)
 
-    # Core sensors with caching fallback
+    # --- Core sensors with caching fallback ---
     voltage = data['voltage']
     if voltage is not None and volt_min_limit <= voltage <= volt_max_limit:
         last_valid_voltage[index] = voltage
@@ -132,36 +132,44 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
     pub('current', 'Current', 'current', 'A', current)
     pub('power', 'Power', 'power', 'W', power)
 
+    # --- Minimal spike protection for cycle count ---
     cycle = data['cycle']
     if isinstance(cycle, int):
-        last_valid_cycle_count[index] = cycle
-        pub('cycle', 'Cycle Count', None, None, cycle, state_class='total_increasing')
+        last_cycle = last_valid_cycle_count.get(index)
+        # only allow increments by 0 or 1
+        if last_cycle is not None and abs(cycle - last_cycle) > 1:
+            cycle_to_publish = last_cycle  # skip spike
+        else:
+            cycle_to_publish = cycle
+            last_valid_cycle_count[index] = cycle
+        pub('cycle', 'Cycle Count', None, None, cycle_to_publish, state_class='total_increasing')
     elif index in last_valid_cycle_count:
         pub('cycle', 'Cycle Count', None, None, last_valid_cycle_count[index], state_class='total_increasing')
 
-    # Cell voltages
+    # --- Cell voltages ---
     if data['cells']:
         for i, v in enumerate(data['cells'], start=1):
             cell_id = f'{i:02}' if zero_pad_cells else str(i)
             pub(f'cell_{cell_id}', f'Cell {cell_id}', 'voltage', 'mV', v)
 
-    # Temperatures with spike filtering and caching
+    # --- Temperatures with minimal spike protection ---
     if data['temps']:
         last_temps = last_valid_temps.get(index, [])
-        valid_temps = filter_temperature_spikes(
-            data['temps'],
-            last_temps,
-            main_settings.temp_min_limit,
-            main_settings.temp_max_limit,
-            delta_limit=10
-        )
+        valid_temps = []
+        for i, t in enumerate(data['temps']):
+            last_temp = last_temps[i] if i < len(last_temps) else None
+            if last_temp is None or abs(t - last_temp) <= 0.5:  # <-- strict protection
+                valid_temps.append(t)
+            else:
+                valid_temps.append(last_temp)  # skip spike
         last_valid_temps[index] = valid_temps
         for i, t in enumerate(valid_temps, start=1):
             pub(f'temp_{i}', f'Temp {i}', 'temperature', '°C', t)
 
+    # --- MOS & ENV temperatures (existing logic with optional delta check) ---
     last_mos, last_env = last_valid_extra.get(index, (None, None))
 
-    def within_delta(new, old, limit=10):
+    def within_delta(new, old, limit=0.5):
         return old is None or abs(new - old) <= limit
 
     if mos_temp is not None and within_delta(mos_temp, last_mos):
