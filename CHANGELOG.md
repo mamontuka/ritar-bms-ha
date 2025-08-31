@@ -4,6 +4,9 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+### [1.9.9.2]
+- **Battery Session Mode Toggle**: Added a new configuration switch in the add-on. By default, now each battery is read in its own separate session. When the switch is disabled, all batteries are read in a single Modbus session as before.
+
 ### [1.9.9.1]
 - **Dockerfile:** Removed DSS key generation for Dropbear to fix build errors.
 - **mqtt_core.py:** Adjusted spike filtering logic for cycles and temperatures to improve data accuracy.
