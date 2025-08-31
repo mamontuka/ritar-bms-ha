@@ -23,7 +23,7 @@ from main_arrays import (
     last_n_socs,
 )
 
-from main_settings import spike_filter_delta, delta_filter
+from main_settings import spike_filter_delta, delta_filter, history_len
 from main_helpers import filter_spikes, is_valid_number
 
 # === Parse incoming battery data ===
@@ -236,14 +236,14 @@ def handle_battery(
     if filtered_voltage is not None:
         data['voltage'] = filtered_voltage
         last_n_voltages[index].append(filtered_voltage)
-        if len(last_n_voltages[index]) > 10:
+        if len(last_n_voltages[index]) > history_len:
             last_n_voltages[index].pop(0)
 
     filtered_soc = filter_spikes(data['soc'], last_n_socs[index], max_delta_soc)
     if filtered_soc is not None:
         data['soc'] = filtered_soc
         last_n_socs[index].append(filtered_soc)
-        if len(last_n_socs[index]) > 10:
+        if len(last_n_socs[index]) > history_len:
             last_n_socs[index].pop(0)
 
     # Cache last valid voltage or fallback to previously cached value for stability
