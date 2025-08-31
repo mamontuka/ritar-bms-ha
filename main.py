@@ -109,6 +109,9 @@ if __name__ == '__main__':
     # Flags to enable console output and warnings
     console_output_enabled = config.get('console_output_enabled', False)
     warnings_enabled = config.get('warnings_enabled', False)
+
+    # Read polling mode from config: "sequential" or "all_in_one", by default now "sequential"
+    separate_battery_reading = config.get('separate_battery_reading', True)
     
     # Setup MQTT client with credentials and connection parameters
     client = mqtt.Client(client_id='ritar_bms', protocol=mqtt.MQTTv311)
@@ -227,23 +230,9 @@ if __name__ == '__main__':
             valid_env = []
             valid_mos = []
 
-            # Poll each battery sequentially
-            for i in range(1, num_batteries + 1):
-                # Delay between battery polls to avoid gateway overload
-                if i > 1:
-                    time.sleep(next_battery_delay)
-
-                # Query and parse battery data; returns MOS and environmental temperatures
-                mos_t, env_t = handle_battery(
-                    client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay,
-                    main_settings.cell_min_limit, main_settings.cell_max_limit,
-                    main_settings.volt_min_limit, main_settings.volt_max_limit,
-                    main_settings.temp_min_limit, main_settings.temp_max_limit,
-                    warnings_enabled=warnings_enabled,
-                    console_output_enabled=console_output_enabled
-                ) or (None, None)
-
-                # --- SOC spike filtering using per-battery history ---
+            # --- Helper function to process filtering per battery ---
+            def process_battery(i, mos_t, env_t):
+                # --- SOC spike filtering ---
                 if filter_spikes and i in last_valid_soc:
                     filtered_soc = filter_spikes(
                         last_valid_soc[i],
@@ -256,7 +245,7 @@ if __name__ == '__main__':
                             last_n_socs[i].pop(0)
                         valid_socs.append(filtered_soc)
 
-                # --- Voltage spike filtering using per-battery history ---
+                # --- Voltage spike filtering ---
                 if filter_spikes and i in last_valid_voltage:
                     filtered_voltage = filter_spikes(
                         last_valid_voltage[i],
@@ -269,15 +258,6 @@ if __name__ == '__main__':
                             last_n_voltages[i].pop(0)
                         valid_voltages.append(filtered_voltage)
 
-
-                # --- Accumulate current and power for summary ---
-                current = last_valid_current.get(i)
-                power = last_valid_power.get(i)
-                if current is not None:
-                    sum_current += current
-                if power is not None:
-                    sum_power += power
-
                 # --- MOS temperature spike filtering ---
                 if filter_temperature_spikes and mos_t is not None:
                     if i not in last_n_mos:
@@ -286,7 +266,6 @@ if __name__ == '__main__':
                         [mos_t], last_n_mos[i],
                         main_settings.temp_min_limit, main_settings.temp_max_limit,
                         delta_limit=delta_filter.get("mos_temperature", 1.0)
-
                     )
                     filtered_mos = filtered_mos_list[0]
                     if filtered_mos is not None:
@@ -303,7 +282,6 @@ if __name__ == '__main__':
                         [env_t], last_n_env[i],
                         main_settings.temp_min_limit, main_settings.temp_max_limit,
                         delta_limit=delta_filter.get("env_temperature", 1.0)
-
                     )
                     filtered_env = filtered_env_list[0]
                     if filtered_env is not None:
@@ -312,16 +290,40 @@ if __name__ == '__main__':
                             last_n_env[i].pop(0)
                         valid_env.append(filtered_env)
 
+                # --- Accumulate current and power for summary ---
+                current = last_valid_current.get(i)
+                power = last_valid_power.get(i)
+                return current, power
+
+            # --- Poll each battery according to selected mode ---
+            battery_range = range(1, num_batteries + 1)
+            for i in battery_range:
+                # Sequential polling: add delay between batteries if needed
+                if not separate_battery_reading and i > 1:
+                    time.sleep(next_battery_delay)
+
+                # Read each battery
+                mos_t, env_t = handle_battery(
+                    client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay,
+                    main_settings.cell_min_limit, main_settings.cell_max_limit,
+                    main_settings.volt_min_limit, main_settings.volt_max_limit,
+                    main_settings.temp_min_limit, main_settings.temp_max_limit,
+                    warnings_enabled=warnings_enabled,
+                    console_output_enabled=console_output_enabled
+                ) or (None, None)
+
+                # Filter values and accumulate sums
+                cur, powr = process_battery(i, mos_t, env_t)
+                if cur is not None:
+                    sum_current += cur
+                if powr is not None:
+                    sum_power += powr
+
             # Calculate averages of filtered values or None if no data
             soc_avg = round(sum(valid_socs) / len(valid_socs), 1) if valid_socs else None
             volt_avg = round(sum(valid_voltages) / len(valid_voltages), 2) if valid_voltages else None
             mos_avg = round(sum(valid_mos) / len(valid_mos), 1) if len(valid_mos) >= num_batteries else None
             env_avg = round(sum(valid_env) / len(valid_env), 1) if len(valid_env) >= num_batteries else None
-
-            # Optionally you could use median instead of average for robustness
-            # from statistics import median
-            # mos_avg = round(median(valid_mos), 1) if valid_mos else None
-            # env_avg = round(median(valid_env), 1) if valid_env else None
 
             # Publish aggregated battery metrics via MQTT
             publish_summary_sensors(client, soc_avg, volt_avg, sum_current, sum_power, mos_avg, env_avg)
