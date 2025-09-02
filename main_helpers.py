@@ -166,3 +166,100 @@ def is_valid_number(val, minv=None, maxv=None):
     if maxv is not None and val > maxv:
         return False
     return True
+
+# === Battery readings results processing, filter values and accumulate sums ===
+def process_battery(
+    i, mos_t, env_t, main_settings, history_len,
+    last_valid_soc, last_valid_voltage, last_valid_current, last_valid_power,
+    last_n_socs, last_n_voltages, last_n_env, last_n_mos,
+    delta_filter, filter_spikes, filter_temperature_spikes,
+    valid_socs, valid_voltages, valid_env, valid_mos
+):
+    """
+    Process filtering and accumulation for a single battery.
+    This function was moved from main.py for better modularity.
+    """
+
+    # --- SOC spike filtering ---
+    if filter_spikes and i in last_valid_soc:
+        filtered_soc = filter_spikes(
+            last_valid_soc[i],
+            last_n_socs[i],
+            max_delta=delta_filter.get("soc", 5)
+        )
+        if filtered_soc is not None:
+            last_n_socs[i].append(filtered_soc)
+            if len(last_n_socs[i]) > history_len:
+                last_n_socs[i].pop(0)
+            valid_socs.append(filtered_soc)
+
+    # --- Voltage spike filtering ---
+    if filter_spikes and i in last_valid_voltage:
+        filtered_voltage = filter_spikes(
+            last_valid_voltage[i],
+            last_n_voltages[i],
+            max_delta=delta_filter.get("voltage", 1.0)
+        )
+        if filtered_voltage is not None:
+            last_n_voltages[i].append(filtered_voltage)
+            if len(last_n_voltages[i]) > history_len:
+                last_n_voltages[i].pop(0)
+            valid_voltages.append(filtered_voltage)
+
+    # --- MOS temperature spike filtering ---
+    if filter_temperature_spikes and mos_t is not None:
+        if i not in last_n_mos:
+            last_n_mos[i] = []
+        filtered_mos_list = filter_temperature_spikes(
+            [mos_t], last_n_mos[i],
+            main_settings.temp_min_limit, main_settings.temp_max_limit,
+            delta_limit=delta_filter.get("mos_temperature", 1.0)
+        )
+        filtered_mos = filtered_mos_list[0]
+        if filtered_mos is not None:
+            last_n_mos[i].append(filtered_mos)
+            if len(last_n_mos[i]) > history_len:
+                last_n_mos[i].pop(0)
+            valid_mos.append(filtered_mos)
+
+    # --- Environmental temperature spike filtering ---
+    if filter_temperature_spikes and env_t is not None:
+        if i not in last_n_env:
+            last_n_env[i] = []
+        filtered_env_list = filter_temperature_spikes(
+            [env_t], last_n_env[i],
+            main_settings.temp_min_limit, main_settings.temp_max_limit,
+            delta_limit=delta_filter.get("env_temperature", 1.0)
+        )
+        filtered_env = filtered_env_list[0]
+        if filtered_env is not None:
+            last_n_env[i].append(filtered_env)
+            if len(last_n_env[i]) > history_len:
+                last_n_env[i].pop(0)
+            valid_env.append(filtered_env)
+
+    # --- Accumulate current and power for summary ---
+    current = last_valid_current.get(i)
+    power = last_valid_power.get(i)
+    return current, power
+
+# === Get number of cells from add-on config with fallback ===
+def get_num_cells_from_config(default=16, min_cells=8, max_cells=16, config_path="/data/options.json"):
+    """
+    Read number of cells from add-on configuration.
+    Returns default if missing or out of bounds.
+    Allowed range: min_cells..max_cells
+    """
+    if not os.path.exists(config_path):
+        return default
+    try:
+        with open(config_path, "r") as f:
+            cfg = json.load(f)
+        n = int(cfg.get("num_cells", default))
+        if n < min_cells or n > max_cells:
+            print(f"[INFO] Invalid num_cells in config ({n}), using default {default}")
+            return default
+        return n
+    except Exception as e:
+        print(f"[WARN] Failed to read num_cells from config: {e}. Using default {default}")
+        return default
