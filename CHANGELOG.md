@@ -4,6 +4,14 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+### [1.9.9.4]
+
+- **Configurable number of battery cells:** Users can now set the number of cells per battery (from 8 up to 16) in the Home Assistant addon configuration. Useful for compatible batteries with fewer than 16 cells to ensure correct readings and proper operation.
+- **Centralized settings:** All important parameters previously hardcoded in battery and temperature parsers are now moved to a `main_settings.py`.  
+  This allows easy adjustment for other battery types via the United BMS framework by creating and editing a custom `main_settings.py` with enhanced capabilities.
+- **Temperature spike filtering:** MOSFET and environmental temperature filtering remains centralized in `parser_temperature.py`, ensuring consistent and stable readings.
+- Battery readings results processing, filter values and accumulate sums function moved from main.py to `main_helpers.py` module, for better modularity.
+
 ### [1.9.9.2]
 - **Battery Session Mode Toggle**: Added a new configuration switch in the add-on. By default, now each battery is read in its own separate session. When the switch is disabled, all batteries are read in a single Modbus session as before.
 
