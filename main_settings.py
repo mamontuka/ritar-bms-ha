@@ -78,3 +78,140 @@ spike_filter_delta = {
     'voltage': 2.0,           # Max allowed sudden jump in voltage before filtering spike
     'soc': 3.0                # Max allowed sudden jump in SOC before filtering spike
 }
+
+# ====================================
+# === Battery parser configuration ===
+# ====================================
+# This section defines all configuration parameters used by the battery telemetry parser.
+# These constants control how raw Modbus data is interpreted, filtered, and processed.
+# They are critical for correct parsing, spike filtering, and validation of battery telemetry.
+
+# ------------------------------
+# Buffer lengths for Modbus responses
+# ------------------------------
+# Modbus queries return fixed-length byte arrays (buffers).
+# These constants define how many bytes we expect for each type of response.
+# If the received buffer length does not match these values, data may be considered invalid.
+BLOCK_BUF_LEN = 37        # Length of the main telemetry block (contains voltage, current, SOC, cycle, power)
+CELLS_BUF_LEN = 37        # Length of the block containing individual cell voltages
+TEMP_BUF_LEN = 13         # Length of the block containing temperature sensors (standard)
+EXTRA_TEMP_BUF_LEN = 25   # Length of the block containing extra temperature sensors (MOSFETs, ambient/environment)
+
+# ------------------------------
+# Minimum number of valid cells
+# ------------------------------
+# Sometimes individual cell readings may be missing or out-of-range.
+# MIN_VALID_CELLS defines how many valid cells are required to accept the cell data.
+MIN_VALID_CELLS = 8       # At least 8 valid cell voltages are needed to consider cell data usable
+
+# ------------------------------
+# Thresholds for discarding spikes
+# ------------------------------
+# Some readings may show unrealistic spikes due to communication errors or sensor glitches.
+# These thresholds are used to discard extremely high values before processing.
+MAX_CURRENT_SPIKE = 150    # Maximum allowable current in Amps; higher values are considered invalid
+MAX_POWER_SPIKE = 8000     # Maximum allowable power in Watts; higher values are considered invalid
+
+# ------------------------------
+# Keys for spike filtering
+# ------------------------------
+# Spike filtering is applied selectively to certain metrics to remove sudden unrealistic jumps.
+# These keys define which telemetry fields will undergo spike filtering.
+SPIKE_FILTER_KEYS = ['voltage', 'soc']  # Only apply spike filtering to voltage and SOC
+
+# ------------------------------
+# Scaling factors for raw data
+# ------------------------------
+# Raw Modbus values are integers that need to be converted to meaningful units.
+# For example, raw voltage = 5234 → actual voltage = 5234 / VOLTAGE_SCALE = 52.34 V
+CURRENT_SCALE = 100  # Raw current values divided by 100 to get Amps
+VOLTAGE_SCALE = 100  # Raw voltage values divided by 100 to get Volts
+SOC_SCALE = 10       # Raw SOC values divided by 10 to get percent (e.g., 855 → 85.5%)
+
+# ------------------------------
+# Hex offsets in the main block
+# ------------------------------
+# Each telemetry field is located at a specific byte range in the main telemetry block.
+# These offsets define the start and end positions for slicing the hex string representation of the block.
+OFFSET_CURRENT_START = 6    # Current data starts at byte 6
+OFFSET_CURRENT_END   = 10   # Current data ends at byte 10 (exclusive) — 4 bytes total
+
+OFFSET_VOLTAGE_START = 10   # Voltage data starts at byte 10
+OFFSET_VOLTAGE_END   = 14   # Voltage data ends at byte 14 (exclusive)
+
+OFFSET_SOC_START     = 14   # SOC data starts at byte 14
+OFFSET_SOC_END       = 18   # SOC data ends at byte 18 (exclusive)
+
+OFFSET_CYCLE_START   = 34   # Cycle count starts at byte 34
+OFFSET_CYCLE_END     = 38   # Cycle count ends at byte 38 (exclusive)
+
+# ------------------------------
+# Cell parsing offsets
+# ------------------------------
+# Each individual cell voltage is also stored in a fixed position within the cells buffer.
+# The following constants allow sequential extraction of all cell voltages.
+NUM_CELLS       = 16      # Total number of cells in the battery
+CELL_HEX_OFFSET = 6       # Starting byte of the first cell's voltage data
+CELL_HEX_STEP   = 4       # Each cell occupies 4 bytes
+CELL_HEX_END    = 10      # Ending byte of the first cell's data (exclusive)
+# For each subsequent cell, the start and end positions are calculated as:
+# start = CELL_HEX_OFFSET + CELL_HEX_STEP * i
+# end   = CELL_HEX_END + CELL_HEX_STEP * i
+# where i = 0..NUM_CELLS-1
+
+# ------------------------------
+# Console output formatting
+# ------------------------------
+# Length of the separator line printed in the console for readability.
+CONSOLE_SEPARATOR_LEN = 112
+
+# ------------------------------
+# SOC bounds
+# ------------------------------
+# Define the valid range of the State of Charge (SOC) in percent.
+# Values outside this range are considered invalid or erroneous.
+SOC_MIN = 0
+SOC_MAX = 100
+
+# ------------------------------
+# Template for parsed result
+# ------------------------------
+# When parsing telemetry, we always return a dictionary with the following keys.
+# Initially, all values are None and will be filled with actual readings if valid.
+RESULT_TEMPLATE = {
+    'voltage': None,  # Battery pack voltage in Volts
+    'soc': None,      # State of Charge in percent
+    'cycle': None,    # Battery cycle count
+    'current': None,  # Current in Amps
+    'power': None,    # Power in Watts
+    'cells': None,    # List of individual cell voltages (millivolts)
+    'temps': None     # List of temperatures from standard sensors (°C)
+}
+
+# === Temperature parsing and spike filtering configuration ===
+# These constants define how raw temperature data from the battery is interpreted,
+# converted to Celsius, and filtered for spikes. Centralizing them here allows
+# easy tuning without touching parser logic.
+
+# --- Buffer structure ---
+TEMP_HEADER_BYTES = 3          # Number of header bytes to skip at the start of temperature buffer
+TEMP_FOOTER_BYTES = 2          # Number of footer bytes to skip at the end of temperature buffer
+TEMP_BYTE_STEP = 2             # Number of bytes per single temperature reading in the buffer
+
+# --- Raw to Celsius conversion ---
+TEMP_RAW_OFFSET = 726          # Offset to subtract from raw sensor value (specific to MOS/ENV sensor)
+TEMP_SCALE = 0.1               # Scale factor to convert raw units to degrees Celsius
+TEMP_BASE_OFFSET = 22.6        # Base offset added after scaling (calibration value)
+TEMP_ROUND_DIGITS = 1          # Number of decimal digits to round temperature readings
+
+# --- Extra temperature buffer (MOSFET / ENV sensors) ---
+EXTRA_TEMP_BUF_LEN = 25        # Expected length of the extra temperature buffer
+# Indices in the hex string (not raw bytes) of MOS/ENV temperatures
+MOS_HEX_START = 6              # Start index in hex string for MOS temperature (inclusive)
+MOS_HEX_END   = 10             # End index in hex string for MOS temperature (exclusive)
+ENV_HEX_START = 10             # Start index in hex string for ENV temperature (inclusive)
+ENV_HEX_END   = 14             # End index in hex string for ENV temperature (exclusive)
+
+# --- Spike filtering ---
+DELTA_TEMP_LIMIT = 1.0         # Maximum allowed difference between consecutive readings
+                               # beyond which a value is considered a spike and rejected
