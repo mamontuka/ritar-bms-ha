@@ -3,7 +3,7 @@
 
 ---
 
-**Current version: [1.9.9.4] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
+**Current version: [1.9.9.5] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
 
 ---
 
