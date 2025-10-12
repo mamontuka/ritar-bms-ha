@@ -4,6 +4,13 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+### [1.9.9.5]
+
+- **Dummy Modbus Read Fix:** Added a short “dummy” Modbus read for all secondary batteries (slaves with ID ≠ 1) immediately after opening their communication session.  
+  This prevents corrupted or invalid first-read values (voltage, current, power, cycle count) that could occasionally appear on graphs after long uptime.  
+  Implemented directly in `modbus_gateway.py` inside the `open()` method — safe, minimal change, no impact on the rest of communication logic.  
+  The dummy request reads one register (`0x0000`) and discards the result, stabilizing the connection before real data collection begins.
+
 ### [1.9.9.4]
 
 - **Configurable number of battery cells:** Users can now set the number of cells per battery (from 8 up to 16) in the Home Assistant addon configuration. Useful for compatible batteries with fewer than 16 cells to ensure correct readings and proper operation.
