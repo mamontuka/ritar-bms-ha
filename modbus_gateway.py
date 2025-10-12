@@ -57,6 +57,23 @@ class ModbusGateway:
                 timeout=self.timeout
             )
 
+        # === Dummy read after opening connection ===
+        # Purpose: prevent corrupted first read on some slaves (e.g., second battery)
+        try:
+            if self.slave != 1:  # Apply only for non-primary batteries
+                dummy_addr = 0x0000
+                dummy_count = 1
+                function_code = self.modbus_registers.FUNC_READ_HOLDING_REGS
+                payload = struct.pack('>B B H H', self.slave, function_code, dummy_addr, dummy_count)
+                crc = modbus_crc16(payload)
+                frame = payload + crc
+                self.send(frame)
+                _ = self.recv(7)  # discard dummy response
+                time.sleep(0.1)
+                print(f"[DEBUG] Dummy Modbus read performed for slave {self.slave}")
+        except Exception as e:
+            print(f"[WARN] Dummy read failed for slave {self.slave}: {e}")
+
     def close(self):
         if self._sock:
             try:
