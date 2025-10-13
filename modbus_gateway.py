@@ -61,6 +61,7 @@ class ModbusGateway:
         # Purpose: prevent corrupted first read on some slaves (e.g., second battery)
         try:
             if self.slave != 1:  # Apply only for non-primary batteries
+                time.sleep(0.15)  # Small delay before first Modbus request
                 dummy_addr = 0x0000
                 dummy_count = 1
                 function_code = self.modbus_registers.FUNC_READ_HOLDING_REGS
@@ -69,7 +70,7 @@ class ModbusGateway:
                 frame = payload + crc
                 self.send(frame)
                 _ = self.recv(7)  # discard dummy response
-                time.sleep(0.1)
+                time.sleep(0.1)  # Short pause before real reads
                 print(f"[DEBUG] Dummy Modbus read performed for slave {self.slave}")
         except Exception as e:
             print(f"[WARN] Dummy read failed for slave {self.slave}: {e}")
