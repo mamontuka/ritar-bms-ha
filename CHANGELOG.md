@@ -4,13 +4,6 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
-## [1.9.9.6]
-
-- **`modbus_gateway.py` enhancement:** Added short pre- and post-delays around the initial *dummy Modbus read* executed immediately after opening a connection.  
-  This prevents corrupted first responses from certain slaves. The dummy read now includes ~100 ms delay before and after execution for improved line stabilization.  
-  Applied only to non-primary batteries (`slave != 1`), ensuring full compatibility with both “separate sessions” and “single session” modes.  
-  Results in a noticeable reduction of random garbage values (`cycle_count`, `current`, `power`) for the second battery without affecting normal Modbus communication or performance.
-
 ### [1.9.9.5]
 
 - **Dummy Modbus Read Fix:** Added a short “dummy” Modbus read for all secondary batteries (slaves with ID ≠ 1) immediately after opening their communication session.  
