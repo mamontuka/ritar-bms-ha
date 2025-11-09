@@ -1,7 +1,7 @@
 # Ritar compatible batteries Bluetooth developer tool
 
 Development board:
-![ESP32-S3-DEV-KIT-N8R8](https://www.waveshare.com/wiki/ESP32-S3-DEV-KIT-N8R8)
+[ESP32-S3-DEV-KIT-N8R8](https://www.waveshare.com/wiki/ESP32-S3-DEV-KIT-N8R8)
 
 ## Description
 
