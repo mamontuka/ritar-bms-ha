@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.9.7]
+
+- Added Bluetooth development tool for Ritar compatible batteries : [README HERE](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/developer_MITM_tool/README.md)
+
 ## [1.9.9.6]
 
 - **`modbus_gateway.py` enhancement:** Added short pre- and post-delays around the initial *dummy Modbus read* executed immediately after opening a connection.  
