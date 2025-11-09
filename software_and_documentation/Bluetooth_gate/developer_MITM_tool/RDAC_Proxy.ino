@@ -127,47 +127,91 @@ void syncTimeWithNTP() {
 // ---------- LOG HELPERS (Web + SPIFFS) ----------
 // Modified so that when g_timeSynced==true logs are prefixed with timestamp
 // alreadyHasTS: If true, the string already contains a timestamp, no need to add it
-void logToWebAndFile(const String &s, bool alreadyHasTS = false) {
-  String tmp;
-  if (!alreadyHasTS) {
-    String ts = getTimeStamp();
-    if (ts.length() > 0) tmp = String("[") + ts + "] " + s;
-    else tmp = s; // time not yet synced
-  } else {
-    tmp = s; // строка уже с timestamp
-  }
+const size_t MAX_LOG_SIZE = 64 * 1024; // 64 KB max log file
 
-  // broadcast to WS only if any clients connected (avoids errors)
-  if (webSocket.connectedClients() > 0) {
-    webSocket.broadcastTXT(tmp);
-  }
+// Forward declaration
+void logToWebAndFile(const String &s, bool alreadyHasTS = false);
 
-  // Always append to SPIFFS log
-  File f = SPIFFS.open(LOG_FILE_PATH, FILE_APPEND);
-  if (f) { f.println(tmp); f.close(); }
+// Simple string log
+void slog(const char* s) { 
+    logToWebAndFile(String(s)); 
 }
 
-
-void slog(const char* s) { logToWebAndFile(String(s)); }
-
+// Formatted log (like printf)
 void slogf(const char* fmt, ...) {
-  char buf[512];
-  va_list ap; va_start(ap, fmt); vsnprintf(buf, sizeof(buf), fmt, ap); va_end(ap);
-  logToWebAndFile(String(buf));
+    char buf[512];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    logToWebAndFile(String(buf));
 }
 
+// Hex dump with tag
 void slogHexTag(const char* tag, const uint8_t* data, size_t len) {
-  char buf[1024];
-  int p = snprintf(buf, sizeof(buf), "[%s] ", tag); // тег, но без timestamp
-  for (size_t i = 0; i < len && p < (int)sizeof(buf)-4; ++i) {
-    p += snprintf(buf + p, sizeof(buf) - p, "%02X ", data[i]);
-  }
-  buf[sizeof(buf)-1] = 0;
-
-  // Pass to the logger with the flag alreadyHasTS = false
-  logToWebAndFile(String(buf), false);
+    char buf[1024];
+    int p = snprintf(buf, sizeof(buf), "[%s] ", tag);
+    for (size_t i = 0; i < len && p < (int)sizeof(buf)-4; ++i) {
+        p += snprintf(buf + p, sizeof(buf) - p, "%02X ", data[i]);
+    }
+    buf[sizeof(buf)-1] = 0;
+    logToWebAndFile(String(buf), false);
 }
 
+// Main logging function with timestamp and file size limit
+void logToWebAndFile(const String &s, bool alreadyHasTS) {
+    String tmp;
+
+    // --- Add timestamp ---
+    if (!alreadyHasTS) {
+        String ts = getTimeStamp();
+        if (ts.length() > 0) tmp = String("[") + ts + "] " + s;
+        else tmp = s; // time not yet synced
+    } else {
+        tmp = s;
+    }
+
+    // --- Broadcast to WebSocket if clients connected ---
+    if (webSocket.connectedClients() > 0) {
+        webSocket.broadcastTXT(tmp);
+    }
+
+    // --- Write to SPIFFS with size check ---
+    if (!SPIFFS.exists(LOG_FILE_PATH)) {
+        // File does not exist yet, just create and append
+        File f = SPIFFS.open(LOG_FILE_PATH, FILE_APPEND);
+        if (f) { f.println(tmp); f.close(); }
+        return;
+    }
+
+    File f = SPIFFS.open(LOG_FILE_PATH, FILE_APPEND);
+    if (!f) return;
+
+    if (f.size() > MAX_LOG_SIZE) {
+        f.close();
+
+        // Read last MAX_LOG_SIZE/2 bytes
+        File fRead = SPIFFS.open(LOG_FILE_PATH, FILE_READ);
+        if (!fRead) return;
+
+        size_t startPos = fRead.size() > MAX_LOG_SIZE/2 ? fRead.size() - MAX_LOG_SIZE/2 : 0;
+        fRead.seek(startPos);
+        String newContent = fRead.readString();
+        fRead.close();
+
+        // Overwrite file with trimmed content
+        SPIFFS.remove(LOG_FILE_PATH);
+        File fWrite = SPIFFS.open(LOG_FILE_PATH, FILE_WRITE);
+        if (fWrite) {
+            fWrite.print(newContent);
+            fWrite.println(tmp); // append new line
+            fWrite.close();
+        }
+    } else {
+        f.println(tmp);
+        f.close();
+    }
+}
 
 // ---------- UTIL ----------
 std::vector<uint8_t> hexToBytes(const String &hex) {
