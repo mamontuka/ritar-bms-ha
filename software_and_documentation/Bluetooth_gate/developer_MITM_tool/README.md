@@ -50,8 +50,8 @@ Covers a long distance between the phone and the battery.
 
     Connect to the RDAC_Proxy battery by native Bluetooth App from store :
 
-![Bluetooth Li](https://play.google.com/store/apps/details?id=com.canrs.bluetooth.li&hl=ru) </br>
-![Neuton Power](https://play.google.com/store/apps/details?id=com.powy.hier)
+[Bluetooth Li](https://play.google.com/store/apps/details?id=com.canrs.bluetooth.li&hl=ru) </br>
+[Neuton Power](https://play.google.com/store/apps/details?id=com.powy.hier)
 
     Open the web interface at http://<ESP_IP>/ to monitor logs.
 
