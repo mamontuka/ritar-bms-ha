@@ -3,7 +3,7 @@
 
 ---
 
-**Current version: [1.9.9.7] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
+**Current version: [1.9.9.8] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
 
 ---
 
@@ -28,6 +28,8 @@
 - [🔌 RS485 Adapters and Ethernet Gates Software and Documentation](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/RS485_adapters_and_ethernet_gates)
 - [🔌 Wiring to RS485 Basics, example equipment - Deye 6K-SG03LP1-EU + VKmodule ENET-485 gate](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/RS485_adapters_and_ethernet_gates/VKmodule.com.ua_Enet-485/README.md)
 - [🔌 Wiring with Deye Inverters Over CAN Bus](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/RS485_adapters_and_ethernet_gates/UNDOCUMENTED_WIRING_WITH_DEYE/README.md)
+- [📱 Bluetooth Gate Firmware README (users)](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md)
+- [📱 Bluetooth Gate Firmware README (developers)](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/README.md)
 
 ---
 
