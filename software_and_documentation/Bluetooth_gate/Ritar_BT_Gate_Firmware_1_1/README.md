@@ -30,6 +30,8 @@ Main firmware file:
 
 [FIRMWARE v1.1](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/Ritar_BT_Gate_Firmware_1_1.FACTORY.bin)
 
+User manual : [README](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md)
+
 Major components inside the sketch:
 
 - **Wi-Fi Manager**  
