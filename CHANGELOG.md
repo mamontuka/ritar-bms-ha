@@ -6,7 +6,7 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ## [1.9.9.8]
 
-- Added **Bluetooth Gate firmware** (ESP32-S3) to the project — open-source MITM/Proxy tool for Ritar-compatible RDAC batteries. **API connector for Homeassistant Ritar-BMS Addon will be added in future releases**
+- Added **Bluetooth Gate firmware** (ESP32-S3) to the project — open-source MITM/Proxy tool for Ritar-compatible RDAC batteries. **API connector for Homeassistant Ritar-BMS Addon will be added in future addon releases**
 - Added user installation guide: [Bluetooth Gate Firmware README (users)](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md)
 - Added developer short reference: [Bluetooth Gate Firmware README (developers)](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/README.md)  
 
