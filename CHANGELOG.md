@@ -4,6 +4,13 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [1.9.9.9]
+- Added **Bluetooth Developer Reference Guide** — comprehensive documentation covering the internal architecture of the Bluetooth BMS Client, command structure, notification format, and extension guidelines.  
+  👉 See: [Developer README](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/developer_BT_client/)
+- Included detailed explanations of data flow, raw packet handling, command building rules, and module integration specifics.
+- Added practical examples and debugging recommendations aimed at developers working with the Bluetooth MITM/Proxy stack.
+- **Bluetooth client integration for the Ritar BMS / United BMS Home Assistant Addon will be introduced in future releases.**
+
 ## [1.9.9.8]
 
 - Added **Bluetooth Gate firmware** (ESP32-S3) to the project — open-source MITM/Proxy tool for Ritar-compatible RDAC batteries. **API connector for Homeassistant Ritar-BMS Addon will be added in future addon releases**
