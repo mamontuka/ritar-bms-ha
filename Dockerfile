@@ -63,7 +63,7 @@ COPY run.sh /
 RUN chmod a+x /run.sh
 
 # Install Python deps
-RUN pip3 install --no-cache-dir pyyaml paho-mqtt pyserial prompt_toolkit
+RUN pip3 install --no-cache-dir pyyaml paho-mqtt pyserial prompt_toolkit websocket-client
 
 # Expose ports
 EXPOSE 2222
