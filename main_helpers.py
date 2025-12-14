@@ -26,8 +26,9 @@ def load_config():
     else:
         sys.exit("Error: No config file found")
 
-    if cfg.get('connection_type') not in ('ethernet', 'serial'):
-        sys.exit("Error: connection_type must be 'ethernet' or 'serial'")
+    # allow bluetooth as a high-level mode that bypasses Modbus gateway
+    if cfg.get('connection_type') not in ('ethernet', 'serial', 'bluetooth'):
+        sys.exit("Error: connection_type must be 'ethernet', 'serial' or 'bluetooth'")
 
     return cfg
 
