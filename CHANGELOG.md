@@ -4,6 +4,17 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.0] 
+– **Bluetooth connection type integration**
+- For Bluetooth connection to work, a dedicated device and the appropriate firmware are required. Documentation: [Ritar BT Gate](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md)
+- Added support for Ritar BMS Bluetooth connection via synchronous bridge
+- Core metrics (voltage, SOC, current, power, cells, temperatures) now readable over Bluetooth
+- All metrics are now parsed and published to both console and MQTT
+- Minimal changes to existing Modbus flow; backward compatible
+- ⚠️ Note: The maximum number of batteries is 8 (D2-D9, Modbus ID from 1 to 8). Unit temperature and voltage display are roughly rounded. The registers used by the Bluetooth interface do not match those used by Modbus. Writing to these registers is not yet supported; may be implemented later.
+- ⚠️ In Bluetooth connection mode, reading/writing of inverter protocol and battery presets is **disabled** due to Bluetooth limitations.
+- ⚠️ If you need accurate and responsible metrics - prefer **RS485 ethernet gate** or **serial** connection type
+
 ## [1.9.9.9]
 - Added **Bluetooth Developer Reference Guide** — comprehensive documentation covering the internal architecture of the Bluetooth BMS Client, command structure, notification format, and extension guidelines.  
   👉 See: [Developer README](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/developer_BT_client/)
