@@ -1,6 +1,6 @@
 name: "Ritar BMS"
 description: "Ritar BAT-5KWH-51.2V Battery BMS Logger"
-version: "1.9.9.9"
+version: "2.0.0"
 slug: "ritar_bms"
 url: "https://github.com/mamontuka/ritar-bms-ha"
 init: false
@@ -27,44 +27,53 @@ options:
   serial_baudrate: 9600
   connection_timeout: 3
   queries_delay: 0.1
+  next_battery_delay : 1
+  separate_battery_reading: true
+  enable_modbus_inverter: true
+  enable_modbus_eeprom: true
+  bluetooth_gate_ip: "192.168.0.101"
+  bluetooth_gate_port: 50501
+  bluetooth_delay_between_query: 0.5
+  bluetooth_answer_wait_timeout: 2.0
+  bluetooth_next_battery_delay: 3.0
   battery_model: BAT-5KWH-51.2V
   num_batteries: 1
   num_cells: 16
-  separate_battery_reading: true
-  console_output_enabled: false
-  next_battery_delay : 1
   read_timeout: 15
+  console_output_enabled: false
   zero_pad_cells: false  
   mqtt_broker: "core-mosquitto"
   mqtt_port: 1883
   mqtt_username: "homeassistant"
   mqtt_password: "mqtt_password_here"
   warnings_enabled: false
-  enable_modbus_inverter: true
-  enable_modbus_eeprom: true
   enable_debug_shell: false
 schema:
-  connection_type: list(ethernet|serial)
+  connection_type: list(ethernet|serial|bluetooth)
   rs485gate_ip: str
   rs485gate_port: int
   serial_port: str
   serial_baudrate: int
   connection_timeout: int
   queries_delay: float
+  next_battery_delay: float
+  separate_battery_reading: bool
+  enable_modbus_inverter: bool
+  enable_modbus_eeprom: bool
+  bluetooth_gate_ip: str
+  bluetooth_gate_port: int
+  bluetooth_delay_between_query: float
+  bluetooth_answer_wait_timeout: float
+  bluetooth_next_battery_delay: float
   battery_model: list(BAT-5KWH-51.2V|BAT-10KWH-51.2V|BAT-15KWH-51.2V|United BMS Custom)
   num_batteries: int
   num_cells: int
-  separate_battery_reading: bool
-  console_output_enabled: bool
-  next_battery_delay: float
   read_timeout: int
+  console_output_enabled: bool
   zero_pad_cells: bool
   mqtt_broker: str
   mqtt_port: int
   mqtt_username: str
   mqtt_password: password
   warnings_enabled: bool
-  enable_modbus_inverter: bool
-  enable_modbus_eeprom: bool
   enable_debug_shell: bool
-  
