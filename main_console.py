@@ -79,6 +79,12 @@ def print_config_table(config, total_width=110):
             ['mqtt_broker', 'mqtt_port', 'mqtt_username', 'mqtt_password'],
             ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout', 'warnings_enabled'],
         ]
+    elif connection_type == 'bluetooth':
+        groups = [
+            ['connection_type', 'bluetooth_gate_ip', 'bluetooth_gate_port'],
+            ['mqtt_broker', 'mqtt_port', 'mqtt_username', 'mqtt_password'],
+            ['battery_model', 'num_batteries', 'console_output_enabled', 'zero_pad_cells', 'queries_delay', 'next_battery_delay', 'read_timeout', 'warnings_enabled'],
+        ]
     else:
         groups = [
             ['connection_type'],
