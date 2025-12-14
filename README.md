@@ -3,7 +3,7 @@
 
 ---
 
-**Current version: [1.9.9.9] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
+**Current version: [2.0.0] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
 
 ---
 
@@ -12,6 +12,13 @@
 - ✅ Ritar Power 5KWH / 10KWH / 15KWH models
 - ✅ Partial support: YHI Energy, Hollandia Power, [Predator](https://www.reddit.com/r/SolarDIY/comments/1lbz5dk/inside_a_ritar_xplfp48v100ah_predator/)
 - ✅ Others via [United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/README.md)
+- ✅ Supported **RS485-ethernet**, **serial**, **bluetooth** connection types
+
+> ⚠️ For Bluetooth connection, a dedicated device and the appropriate firmware are required.  
+> Documentation: [Ritar BT Gate](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md)  
+> ⚠️ Max 8 batteries (D2-D9, Modbus ID 1–8). Unit voltage/temperature is roughly rounded. Writing to Bluetooth registers is not yet supported.  
+> ⚠️ In Bluetooth mode, reading/writing inverter protocol and battery presets is **disabled** due to Bluetooth limitations.  
+> ⚠️ For accurate metrics, prefer **RS485 Ethernet Gate** or **serial** connection.
 
 ---
 
@@ -74,7 +81,7 @@ Create **your own BMS addon** for other manufacturers
 ## ⚙️ Features
 
 - 🔁 RS485 & Serial Communication
-- 📦 Up to 15 battery unit support
+- 📦 Up to **15 battery** unit support (with **RS485-ethernet** or **serial** connection type)
 - 🌡 MOS/Environment/Cell temperatures
 - 🔋 SOC, Block Voltage, Current, Power
 - 📉 Graph filtering, spike protection
