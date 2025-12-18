@@ -4,6 +4,11 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.4] 
+– **Bluetooth connection type related patches**
+- Fixed ESS averages aggregation and calculation when using Bluetooth connection with multi-battery setup
+- Adjusted filtering for MOS and ENV temperature values with Bluetooth connection
+
 ## [2.0.0] 
 – **Bluetooth connection type integration**
 - For Bluetooth connection to work, a dedicated device and the appropriate firmware are required. Documentation: [Ritar BT Gate](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md)
