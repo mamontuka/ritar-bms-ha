@@ -259,28 +259,54 @@ if __name__ == '__main__':
         delete_battery_cell_topics_on_zeropad_change(client, num_batteries, zero_pad_cells)
         save_zeropad_state(zero_pad_cells, pad_state_path)
 
+    # Bluetooth-specific filtering overrides
+    if use_bluetooth:
+        BT_HISTORY_LEN = 4          # much shorter history
+        BT_TEMP_DELTA = 5.0         # allow larger temp jumps (°C)
+    else:
+        BT_HISTORY_LEN = history_len
+        BT_TEMP_DELTA = None        # keep defaults
+
+    # Bluetooth ESS calculator thread    
+    from main_helpers import start_ess_worker
+    if use_bluetooth:
+        start_ess_worker(client, battery_ids)
+        print("[INFO] Bluetooth ESS worker thread started")
+
     # Print separator line
     print("-" * 112)
-    
+
     # === Main polling loop ===
     try:
         while True:
+            # --- Respect global pause if set (e.g., after inverter write) ---
             if time.time() < pause_polling_until:
                 time.sleep(0.1)
                 continue
 
+            # --- Determine sleep based on connection type ---
             if use_bluetooth:
                 time.sleep(dynamic_bt_sleep)
             else:
                 time.sleep(read_timeout)
 
+            # ===== BLUETOOTH PATH =====
             if use_bluetooth:
-                sum_current = 0.0
-                sum_power = 0.0
-                valid_socs = []
-                valid_voltages = []
-                valid_env = []
-                valid_mos = []
+                # Temporary batch buffer for this cycle
+                valid_socs = {}
+                valid_voltages = {}
+                valid_mos = {}
+                valid_env = {}
+
+                # --- Override history_len and temp delta for Bluetooth ---
+                effective_history_len = BT_HISTORY_LEN
+
+                if BT_TEMP_DELTA is not None:
+                    # monkey-patch delta_filter for temperature only (local override)
+                    delta_filter_bt = dict(delta_filter)
+                    delta_filter_bt["temperature"] = BT_TEMP_DELTA
+                else:
+                    delta_filter_bt = delta_filter
 
                 for i in battery_ids:
                     try:
@@ -294,40 +320,54 @@ if __name__ == '__main__':
 
                     data_dict, mos_t, env_t = result
 
-                    # --- PUBLISH SENSORS ---
-                    from mqtt_core import publish_sensors
-                    publish_sensors(client, i, data_dict, mos_t, env_t, battery_model, zero_pad_cells)
+                    # --- ensure cell temperatures are always a list for MQTT ---
+                    if "temperature" in data_dict:
+                        if isinstance(data_dict["temperature"], (int, float)):
+                            data_dict["temperature"] = [float(data_dict["temperature"])]
 
-                    # --- FILTER & ACCUMULATE ---
-                    # Apply the same filtering functions as for Modbus
+                    # --- Filter and accumulate per battery ---
                     cur, powr = process_battery(
-                        i, mos_t, env_t, main_settings, history_len,
+                        i, mos_t, env_t, main_settings, effective_history_len,
                         last_valid_soc, last_valid_voltage, last_valid_current, last_valid_power,
                         last_n_socs, last_n_voltages, last_n_env, last_n_mos,
-                        delta_filter, filter_spikes, filter_temperature_spikes,
-                        valid_socs, valid_voltages, valid_env, valid_mos
+                        delta_filter_bt, filter_spikes, filter_temperature_spikes,
+                        valid_socs.setdefault(i, []),
+                        valid_voltages.setdefault(i, []),
+                        valid_env.setdefault(i, []),
+                        valid_mos.setdefault(i, [])
                     )
 
-                    if cur is not None:
-                        sum_current += cur
-                    if powr is not None:
-                        sum_power += powr
+                    # --- Update ESS buffer per battery ---
+                    from main_helpers import update_ess_buffer
+                    update_ess_buffer(
+                        battery_id=i,
+                        soc=valid_socs[i][-1] if valid_socs[i] else None,
+                        volt=valid_voltages[i][-1] if valid_voltages[i] else None,
+                        mos=valid_mos[i][-1] if valid_mos[i] else None,
+                        env=valid_env[i][-1] if valid_env[i] else None,
+                        current=cur,
+                        power=powr,
+                        battery_ids=battery_ids
+                    )
 
-                    time.sleep(next_battery_delay)
+                    # --- Publish individual battery sensors using filtered temperatures ---
+                    from mqtt_core import publish_sensors
+                    mos_last = valid_mos[i][-1] if valid_mos[i] else None
+                    env_last = valid_env[i][-1] if valid_env[i] else None
+                    filtered_data_dict = dict(data_dict)
+                    filtered_data_dict['mos_t'] = mos_last
+                    filtered_data_dict['env_t'] = env_last
 
-                # --- PUBLISH AGGREGATED METRICS ---
-                soc_avg = round(sum(valid_socs) / len(valid_socs), 1) if valid_socs else None
-                volt_avg = round(sum(valid_voltages) / len(valid_voltages), 2) if valid_voltages else None
-                mos_avg = round(sum(valid_mos) / len(valid_mos), 1) if len(valid_mos) >= num_batteries else None
-                env_avg = round(sum(valid_env) / len(valid_env), 1) if len(valid_env) >= num_batteries else None
+                    publish_sensors(client, i, filtered_data_dict, mos_last, env_last, battery_model, zero_pad_cells)
+                    
+                    time.sleep(bt_next_battery_delay)
 
-                publish_summary_sensors(client, soc_avg, volt_avg, sum_current, sum_power, mos_avg, env_avg)
+                # Skip Modbus loop
+                continue
 
-                continue  # skip Modbus loop
-
-        # ---  MODBUS LOOP BELOW ---
-            # Reopen Modbus gateway connection as a workaround to keep it stable
+            # ===== MODBUS PATH =====
             try:
+                # Reopen gateway to maintain stability
                 gateway.close()
                 time.sleep(0.2)
                 gateway.open()
@@ -335,24 +375,21 @@ if __name__ == '__main__':
                 print(f"[ERROR] Failed to reopen gateway: {e}")
                 continue
 
-            # Initialize accumulators for current and power sums
+            # Initialize accumulators
             sum_current = 0.0
             sum_power = 0.0
-
-            # Lists to accumulate filtered valid values for SOC, voltages, temperatures
             valid_socs = []
             valid_voltages = []
             valid_env = []
             valid_mos = []
 
-            # --- Poll each battery according to selected mode ---
+            # Poll each battery
             battery_range = range(1, num_batteries + 1)
             for i in battery_range:
-                # Sequential polling: add delay between batteries if needed
                 if not separate_battery_reading and i > 1:
                     time.sleep(next_battery_delay)
 
-                # Read each battery
+                # Read battery
                 mos_t, env_t = handle_battery(
                     client, i, queries, gateway, battery_model, zero_pad_cells, queries_delay,
                     main_settings.cell_min_limit, main_settings.cell_max_limit,
@@ -362,7 +399,7 @@ if __name__ == '__main__':
                     console_output_enabled=console_output_enabled
                 ) or (None, None)
 
-                # Filter values and accumulate sums
+                # Filter and accumulate
                 cur, powr = process_battery(
                     i, mos_t, env_t, main_settings, history_len,
                     last_valid_soc, last_valid_voltage, last_valid_current, last_valid_power,
@@ -375,19 +412,19 @@ if __name__ == '__main__':
                 if powr is not None:
                     sum_power += powr
 
-            # Calculate averages of filtered values or None if no data
+            # Compute averages
             soc_avg = round(sum(valid_socs) / len(valid_socs), 1) if valid_socs else None
             volt_avg = round(sum(valid_voltages) / len(valid_voltages), 2) if valid_voltages else None
             mos_avg = round(sum(valid_mos) / len(valid_mos), 1) if len(valid_mos) >= num_batteries else None
             env_avg = round(sum(valid_env) / len(valid_env), 1) if len(valid_env) >= num_batteries else None
 
-            # Publish aggregated battery metrics via MQTT
+            # Publish ESS summary
             publish_summary_sensors(client, soc_avg, volt_avg, sum_current, sum_power, mos_avg, env_avg)
 
     except Exception as e:
         print(f"[ERROR] Exception in main loop: {e}")
     finally:
-        # Clean up MQTT client loop and close gateway on exit
+        # Cleanup
         client.loop_stop()
         if gateway:
             gateway.close()
