@@ -4,11 +4,15 @@ import os
 import sys
 import json
 import yaml
+import time
 import shutil
 import warnings
 import importlib.util
+import threading
 from statistics import median
 from main_settings import PAD_STATE_PATH
+from collections import defaultdict
+from mqtt_core import publish_summary_sensors
 
 # === Suppress deprecation warnings globally ===
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -264,3 +268,87 @@ def get_num_cells_from_config(default=16, min_cells=8, max_cells=16, config_path
     except Exception as e:
         print(f"[WARN] Failed to read num_cells from config: {e}. Using default {default}")
         return default
+
+# ===== ESS buffer and synchronization primitives =====
+ess_buffer = defaultdict(dict)  # ess_buffer[battery_id] = {"soc": val, "volt": val, "mos": val, "env": val, "current": val, "power": val}
+ess_lock = threading.Lock()
+ess_ready_event = threading.Event()
+
+def start_ess_worker(client, battery_ids):
+    """
+    Start a background thread that calculates ESS averages and publishes them via MQTT.
+    """
+
+    def ess_worker_loop():
+        while True:
+            ess_ready_event.wait()
+            with ess_lock:
+                # Only proceed if we have all batteries' data
+                if all(bid in ess_buffer for bid in battery_ids):
+                    socs = [ess_buffer[bid]["soc"] for bid in battery_ids if ess_buffer[bid].get("soc") is not None]
+                    volts = [ess_buffer[bid]["volt"] for bid in battery_ids if ess_buffer[bid].get("volt") is not None]
+                    mos_temps = [ess_buffer[bid]["mos"] for bid in battery_ids if ess_buffer[bid].get("mos") is not None]
+                    env_temps = [ess_buffer[bid]["env"] for bid in battery_ids if ess_buffer[bid].get("env") is not None]
+                    currents = [ess_buffer[bid]["current"] for bid in battery_ids if ess_buffer[bid].get("current") is not None]
+                    powers = [ess_buffer[bid]["power"] for bid in battery_ids if ess_buffer[bid].get("power") is not None]
+
+                    soc_avg = round(sum(socs) / len(socs), 1) if socs else None
+                    volt_avg = round(sum(volts) / len(volts), 2) if volts else None
+                    mos_avg = round(sum(mos_temps) / len(mos_temps), 1) if mos_temps else None
+                    env_avg = round(sum(env_temps) / len(env_temps), 1) if env_temps else None
+                    cur_sum = sum(currents) if currents else 0.0
+                    pow_sum = sum(powers) if powers else 0.0
+
+                    # Publish ESS averages via MQTT
+                    publish_summary_sensors(client, soc_avg, volt_avg, cur_sum, pow_sum, mos_avg, env_avg)
+
+                    # Clear buffer for next cycle
+                    ess_buffer.clear()
+
+            ess_ready_event.clear()
+            time.sleep(0.1)  # small sleep to avoid busy loop
+
+    threading.Thread(target=ess_worker_loop, daemon=True).start()
+
+
+def update_ess_buffer(battery_id, soc=None, volt=None, mos=None, env=None, current=None, power=None, battery_ids=None):
+    """
+    Update the ESS buffer from main loop after reading a single battery.
+    Signals ESS thread if all batteries have reported.
+    """
+    with ess_lock:
+        ess_buffer[battery_id] = {
+            "soc": soc,
+            "volt": volt,
+            "mos": mos,
+            "env": env,
+            "current": current,
+            "power": power
+        }
+        if battery_ids and all(bid in ess_buffer for bid in battery_ids):
+            ess_ready_event.set()
+
+def compute_ess_summary(battery_ids, valid_socs, valid_voltages, valid_mos, valid_env, last_valid_current, last_valid_power):
+    """
+    Compute ESS averages/sums from lists/dicts of individual battery readings (Bluetooth path only).
+    Returns: soc_avg, volt_avg, mos_avg, env_avg, cur_sum, pow_sum
+    """
+    def safe_avg(lst):
+        vals = [v for v in lst if v is not None]
+        return sum(vals)/len(vals) if vals else None
+
+    soc_list = [valid_socs.get(i, [None])[-1] if valid_socs.get(i) else None for i in battery_ids]
+    volt_list = [valid_voltages.get(i, [None])[-1] if valid_voltages.get(i) else None for i in battery_ids]
+    mos_list = [valid_mos.get(i, [None])[-1] if valid_mos.get(i) else None for i in battery_ids]
+    env_list = [valid_env.get(i, [None])[-1] if valid_env.get(i) else None for i in battery_ids]
+    cur_list = [last_valid_current.get(i) for i in battery_ids]
+    pow_list = [last_valid_power.get(i) for i in battery_ids]
+
+    soc_avg = round(safe_avg(soc_list), 1) if any(soc_list) else None
+    volt_avg = round(safe_avg(volt_list), 2) if any(volt_list) else None
+    mos_avg = round(safe_avg(mos_list), 1) if any(mos_list) else None
+    env_avg = round(safe_avg(env_list), 1) if any(env_list) else None
+    cur_sum = sum([v for v in cur_list if v is not None]) if cur_list else 0.0
+    pow_sum = sum([v for v in pow_list if v is not None]) if pow_list else 0.0
+
+    return soc_avg, volt_avg, mos_avg, env_avg, cur_sum, pow_sum
