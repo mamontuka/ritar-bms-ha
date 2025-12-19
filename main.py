@@ -263,9 +263,11 @@ if __name__ == '__main__':
     if use_bluetooth:
         BT_HISTORY_LEN = 4          # much shorter history
         BT_TEMP_DELTA = 5.0         # allow larger temp jumps (°C)
+        temp_mqtt_limit = 2.0       # local override only for MQTT, fix MQTT temperatures freeze
     else:
+        # keep defaults
         BT_HISTORY_LEN = history_len
-        BT_TEMP_DELTA = None        # keep defaults
+        BT_TEMP_DELTA = None
 
     # Bluetooth ESS calculator thread    
     from main_helpers import start_ess_worker
@@ -358,8 +360,8 @@ if __name__ == '__main__':
                     filtered_data_dict['mos_t'] = mos_last
                     filtered_data_dict['env_t'] = env_last
 
-                    publish_sensors(client, i, filtered_data_dict, mos_last, env_last, battery_model, zero_pad_cells)
-                    
+                    publish_sensors(client, i, filtered_data_dict, mos_last, env_last, battery_model, zero_pad_cells, temp_mqtt_limit=temp_mqtt_limit)
+
                     time.sleep(bt_next_battery_delay)
 
                 # Skip Modbus loop
