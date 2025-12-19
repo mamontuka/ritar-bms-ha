@@ -215,3 +215,8 @@ ENV_HEX_END   = 14             # End index in hex string for ENV temperature (ex
 # --- Spike filtering ---
 DELTA_TEMP_LIMIT = 1.0         # Maximum allowed difference between consecutive readings
                                # beyond which a value is considered a spike and rejected
+
+# --- MQTT temperatures publication filter ---
+TEMP_MQTT_LIMIT = 0.5          # Maximum allowed difference betwen previous value and current
+                               # used with RS485-ethernet/serial connection types,
+                               # overriden with bluetooth connection.
