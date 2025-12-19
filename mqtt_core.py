@@ -81,7 +81,7 @@ def delete_battery_cell_topics_on_zeropad_change(client, num_batteries, zero_pad
 
 
 # --- Batteries MQTT sensors publisher ---
-def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False):
+def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cells=False, temp_mqtt_limit=None):
     base = BATTERY_BASE_TOPIC_TEMPLATE.format(index=index)
     device_info = {
         'identifiers': [id_.format(index=index) for id_ in BATTERY_DEVICE_IDENTIFIERS_TEMPLATE],
@@ -158,7 +158,7 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
         valid_temps = []
         for i, t in enumerate(data['temps']):
             last_temp = last_temps[i] if i < len(last_temps) else None
-            if last_temp is None or abs(t - last_temp) <= 0.5:  # <-- strict protection
+            if last_temp is None or abs(t - last_temp) <= temp_mqtt_limit:  # <-- strict protection
                 valid_temps.append(t)
             else:
                 valid_temps.append(last_temp)  # skip spike
@@ -169,7 +169,7 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
     # --- MOS & ENV temperatures (existing logic with optional delta check) ---
     last_mos, last_env = last_valid_extra.get(index, (None, None))
 
-    def within_delta(new, old, limit=0.5):
+    def within_delta(new, old, limit=temp_mqtt_limit):
         return old is None or abs(new - old) <= limit
 
     if mos_temp is not None and within_delta(mos_temp, last_mos):
