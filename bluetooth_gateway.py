@@ -102,7 +102,7 @@ class BluetoothBridge:
                 return cfg
         return None
 
-    def read_battery(self, index, console_output_enabled=None, warnings_enabled=None, mqtt_publish_func=None):
+    def read_battery(self, index, console_output_enabled=None, warnings_enabled=None):
         if console_output_enabled is None:
             console_output_enabled = self.console_output_enabled
         if warnings_enabled is None:
@@ -277,23 +277,6 @@ class BluetoothBridge:
                     print(f"Battery {index} MOS Temp: {mos_t}°C, ENV Temp: {env_t}°C")
                 print("-" * 112)
 
-            # ----------------------
-            # MQTT publish (if function provided)
-            # ----------------------
-            if mqtt_publish_func:
-                mqtt_publish_func(index, {
-                    'voltage': data_dict['voltage'],
-                    'soc': data_dict['soc'],
-                    'cycle': data_dict['cycle'],
-                    'current': cur_display,
-                    'power': pow_display,
-                    'cells': data_dict.get('cells'),
-                    'temps': data_dict.get('temps'),
-                    'mos_temp': mos_t,
-                    'env_temp': env_t
-                })
-
-            time.sleep(self.next_battery_delay)
             return data_dict, mos_t, env_t
 
         except Exception as e:
