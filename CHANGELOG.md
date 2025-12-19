@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.6] 
+– **Bluetooth connection type related patches**
+- Fixed temperature freezes in MQTT when using Bluetooth connection
+
 ## [2.0.4] 
 – **Bluetooth connection type related patches**
 - Fixed ESS averages aggregation and calculation when using Bluetooth connection with multi-battery setup
