@@ -47,7 +47,7 @@ from main_settings import (
     NUM_CELLS, CELL_HEX_OFFSET, CELL_HEX_STEP, CELL_HEX_END,
     CONSOLE_SEPARATOR_LEN,
     SOC_MIN, SOC_MAX,
-    RESULT_TEMPLATE, spike_filter_delta, delta_filter, history_len
+    RESULT_TEMPLATE, spike_filter_delta, delta_filter, history_len, TEMP_MQTT_LIMIT
 )
 
 # How many cells battery have 
@@ -316,7 +316,7 @@ def handle_battery(
     # ------------------------------
     # Publish to MQTT
     # ------------------------------
-    publish_sensors(client, index, data, mos_t, env_t, model, zero_pad_cells)
+    publish_sensors(client, index, data, mos_t, env_t, model, zero_pad_cells, temp_mqtt_limit=TEMP_MQTT_LIMIT)
 
     # Return extra temperatures for further processing if needed
     return mos_t, env_t
