@@ -4,6 +4,9 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.7]
+- Compatibility and operation within a **single mixed installation** of [Ritar BAT-5KWH-51.2V](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Ritar_official_software_and_documentation/review_pictures/1_Ritar%20BAT-5KWH-51.2V.jpg) and [Ritar R-LFP51.2V100AH ​​BT](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Ritar_official_software_and_documentation/review_pictures/5%20Ritar%20R-LFP51.2V100AH%20BT.jpg) battery models have been **confirmed**.
+
 ## [2.0.6] 
 – **Bluetooth connection type related patches**
 - Fixed temperature freezes in MQTT when using Bluetooth connection
