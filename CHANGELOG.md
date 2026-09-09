@@ -4,6 +4,10 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.8]
+- Updated Official Android software. Added native app for choosing inverter protocol over bluetooth (check note, this app **works with fresh** BMS firmwares and BMS boards revisions) [Android Apps](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/Ritar_official_software_and_documentation/software/android).
+- Ability for change inverter protocol over [Ritar BT Gate](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md), will be added in future addon releases.
+
 ## [2.0.7]
 - Compatibility and operation within a **single mixed installation** of [Ritar BAT-5KWH-51.2V](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Ritar_official_software_and_documentation/review_pictures/1_Ritar%20BAT-5KWH-51.2V.jpg) and [Ritar R-LFP51.2V100AH ​​BT](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Ritar_official_software_and_documentation/review_pictures/5%20Ritar%20R-LFP51.2V100AH%20BT.jpg) battery models have been **confirmed**.
 
