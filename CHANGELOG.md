@@ -4,6 +4,9 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.9]
+- Improve cycle spike filtering for 2+ battery setups with long RS485 wiring.
+
 ## [2.0.8]
 - Updated Official Android software. Added native app for choosing inverter protocol over bluetooth (check note, this app **works with fresh** BMS firmwares and BMS boards revisions) [Android Apps](https://github.com/mamontuka/ritar-bms-ha/tree/main/software_and_documentation/Ritar_official_software_and_documentation/software/android).
 - Ability for change inverter protocol over [Ritar BT Gate](https://github.com/mamontuka/ritar-bms-ha/blob/main/software_and_documentation/Bluetooth_gate/Ritar_BT_Gate_Firmware_1_1/firmware/README.md), will be added in future addon releases.
