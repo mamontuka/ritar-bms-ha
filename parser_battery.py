@@ -12,6 +12,7 @@
 import time
 import binascii
 from statistics import median  # used in spike filtering
+from modbus_gateway import modbus_crc16
 
 # Import temperature-related helper functions
 from parser_temperature import (
@@ -38,19 +39,20 @@ from main_arrays import (
 from main_helpers import filter_spikes, is_valid_number, get_num_cells_from_config
 
 from main_settings import (
-    BLOCK_BUF_LEN, CELLS_BUF_LEN, TEMP_BUF_LEN, EXTRA_TEMP_BUF_LEN, 
+    BLOCK_BUF_LEN, CELLS_BUF_LEN, TEMP_BUF_LEN, EXTRA_TEMP_BUF_LEN,
     MIN_VALID_CELLS,
-    MAX_CURRENT_SPIKE, MAX_POWER_SPIKE, SPIKE_FILTER_KEYS, 
-    CURRENT_SCALE, VOLTAGE_SCALE, SOC_SCALE, 
+    MAX_CURRENT_SPIKE, MAX_POWER_SPIKE, SPIKE_FILTER_KEYS,
+    CURRENT_SCALE, VOLTAGE_SCALE, SOC_SCALE,
     OFFSET_CURRENT_START, OFFSET_CURRENT_END, OFFSET_VOLTAGE_START, OFFSET_VOLTAGE_END,
     OFFSET_SOC_START, OFFSET_SOC_END, OFFSET_CYCLE_START, OFFSET_CYCLE_END,
     NUM_CELLS, CELL_HEX_OFFSET, CELL_HEX_STEP, CELL_HEX_END,
     CONSOLE_SEPARATOR_LEN,
     SOC_MIN, SOC_MAX,
-    RESULT_TEMPLATE, spike_filter_delta, delta_filter, history_len, TEMP_MQTT_LIMIT
+    RESULT_TEMPLATE, spike_filter_delta, delta_filter, history_len, TEMP_MQTT_LIMIT,
+    MAX_VALID_CYCLE, MAX_CYCLE_STEP
 )
 
-# How many cells battery have 
+# How many cells battery have
 DEFAULT_NUM_CELLS = NUM_CELLS
 NUM_CELLS = get_num_cells_from_config(default=DEFAULT_NUM_CELLS)
 
@@ -177,19 +179,32 @@ def handle_battery(
     # ------------------------------
     def safe_query(key, expected_len=None):
         """
-        Sends a Modbus query and catches errors:
-        - key: query name (e.g., 'get_block_voltage')
-        - expected_len: number of bytes expected (optional)
-        Returns response bytes or None if failed.
+        Sends a Modbus query and validates response integrity.
+        CRC16 check protects against shifted/corrupted packets
+        caused by RS-485 gateway buffer desync on reconnect.
         """
         if key not in q:
             if warnings_enabled:
                 print(f"[INFO] Battery {index} skipping missing query '{key}'")
             return None
-        time.sleep(queries_delay)  # avoid flooding
+        time.sleep(queries_delay)
         try:
             gateway.send(q[key])
             response = gateway.recv(expected_len) if expected_len else gateway.recv()
+
+            # === CRC & Frame Validation ===
+            if response and len(response) >= 5:
+                # Reject corrupted/shifted packets
+                if modbus_crc16(response[:-2]) != response[-2:]:
+                    if warnings_enabled:
+                        print(f"[WARN] Battery {index} {key} CRC mismatch! Dropping packet.")
+                    return None
+                # Reject Modbus error responses (0x83, 0x84 etc.)
+                if response[1] not in (0x03, 0x04):
+                    if warnings_enabled:
+                        print(f"[WARN] Battery {index} {key} invalid FC: {response[1]:#04x}")
+                    return None
+
             return response
         except Exception as e:
             if warnings_enabled:
@@ -285,8 +300,29 @@ def handle_battery(
     else:
         data['soc'] = last_valid_soc.get(index)
 
+    # --- Cycle count validation with BMS reset support ---
+    # Protects against missreads (e.g. cell voltage parsed as cycles)
+    # while allowing legitimate factory resets (cycle decrease).
     if isinstance(data['cycle'], int):
-        last_valid_cycle_count[index] = data['cycle']
+        prev_cycle = last_valid_cycle_count.get(index)
+
+        # Reject obvious garbage (0xFFFF, negative values)
+        if data['cycle'] > MAX_VALID_CYCLE or data['cycle'] < 0:
+            if warnings_enabled:
+                print(f"[WARN] Battery {index} cycle out of bounds: {data['cycle']}. Using cache.")
+            data['cycle'] = prev_cycle
+        elif prev_cycle is not None:
+            # Block upward spikes only; allow decrease (BMS reset)
+            if (data['cycle'] - prev_cycle) > MAX_CYCLE_STEP:
+                if warnings_enabled:
+                    print(f"[WARN] Battery {index} cycle spike UP: {data['cycle']} (prev: {prev_cycle}). Reverted.")
+                data['cycle'] = prev_cycle
+            else:
+                # Valid: normal increment OR legitimate reset
+                last_valid_cycle_count[index] = data['cycle']
+        else:
+            # First successful read after startup
+            last_valid_cycle_count[index] = data['cycle']
     else:
         data['cycle'] = last_valid_cycle_count.get(index)
 

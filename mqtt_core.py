@@ -43,6 +43,7 @@ ESS_OBJECT_ID_TEMPLATE = main_settings.ESS_OBJECT_ID_TEMPLATE
 INVERTER_PROTOCOL_BASE_TOPIC = main_settings.INVERTER_PROTOCOL_BASE_TOPIC
 INVERTER_PROTOCOL_UNIQUE_ID = main_settings.INVERTER_PROTOCOL_UNIQUE_ID
 INVERTER_PROTOCOL_OBJECT_ID = main_settings.INVERTER_PROTOCOL_OBJECT_ID
+MAX_CYCLE_STEP = main_settings.MAX_CYCLE_STEP
 
 filter_temperature_spikes = parser_temperature.filter_temperature_spikes
 
@@ -132,35 +133,22 @@ def publish_sensors(client, index, data, mos_temp, env_temp, model, zero_pad_cel
     pub('current', 'Current', 'current', 'A', current)
     pub('power', 'Power', 'power', 'W', power)
 
-    # --- Bulletproof spike protection for cycle count ---
+    # --- Cycle publishing (parser already validated) ---
+    # Safety net: block upward spikes only, allow decrease for BMS reset.
     cycle = data['cycle']
-    
-    # Ignore negative values ​​(garbage from registers)
-    if isinstance(cycle, int) and cycle >= 0:
+    if isinstance(cycle, int):
         last_cycle = last_valid_cycle_count.get(index)
-        
-        if last_cycle is not None:
-            if cycle < last_cycle:
-                # Cycle counts physically cannot decrease. Ignoring the reset or glitch.
-                cycle_to_publish = last_cycle
-                print(f"[WARN] Cycle count decreased from {last_cycle} to {cycle} on battery {index}. Ignored.")
-            elif cycle - last_cycle > 5: 
-                # Protection against anomalous spikes (more than 5 cycles per polling tick is not possible)
-                cycle_to_publish = last_cycle
-                print(f"[WARN] Unrealistic cycle spike from {last_cycle} to {cycle} on battery {index}. Ignored.")
-            else:
-                cycle_to_publish = cycle
-                last_valid_cycle_count[index] = cycle
+
+        if last_cycle is not None and (cycle - last_cycle) > MAX_CYCLE_STEP:
+            # Upward spike slipped through parser — use cached value
+            cycle_to_publish = last_cycle
         else:
-            # First run after script restart: accept the value but log it
+            # Normal increment or legitimate reset — publish as-is
             cycle_to_publish = cycle
             last_valid_cycle_count[index] = cycle
-            print(f"[INFO] Initial cycle count for battery {index} set to {cycle} after script restart.")
-            
+
         pub('cycle', 'Cycle Count', None, None, cycle_to_publish, state_class='total_increasing')
-        
     elif index in last_valid_cycle_count:
-        # If invalid data (None/float) is received, publish the last known value.
         pub('cycle', 'Cycle Count', None, None, last_valid_cycle_count[index], state_class='total_increasing')
 
     # --- Cell voltages ---

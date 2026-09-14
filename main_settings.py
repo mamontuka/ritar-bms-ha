@@ -86,9 +86,9 @@ spike_filter_delta = {
 # These constants control how raw Modbus data is interpreted, filtered, and processed.
 # They are critical for correct parsing, spike filtering, and validation of battery telemetry.
 
-# ------------------------------
+# -------------------------------
 # Buffer lengths for Modbus responses
-# ------------------------------
+# -------------------------------
 # Modbus queries return fixed-length byte arrays (buffers).
 # These constants define how many bytes we expect for each type of response.
 # If the received buffer length does not match these values, data may be considered invalid.
@@ -97,40 +97,43 @@ CELLS_BUF_LEN = 37        # Length of the block containing individual cell volta
 TEMP_BUF_LEN = 13         # Length of the block containing temperature sensors (standard)
 EXTRA_TEMP_BUF_LEN = 25   # Length of the block containing extra temperature sensors (MOSFETs, ambient/environment)
 
-# ------------------------------
+# -------------------------------
 # Minimum number of valid cells
-# ------------------------------
+# -------------------------------
 # Sometimes individual cell readings may be missing or out-of-range.
 # MIN_VALID_CELLS defines how many valid cells are required to accept the cell data.
 MIN_VALID_CELLS = 8       # At least 8 valid cell voltages are needed to consider cell data usable
 
-# ------------------------------
+# --------------------------------
 # Thresholds for discarding spikes
-# ------------------------------
+# --------------------------------
 # Some readings may show unrealistic spikes due to communication errors or sensor glitches.
 # These thresholds are used to discard extremely high values before processing.
 MAX_CURRENT_SPIKE = 150    # Maximum allowable current in Amps; higher values are considered invalid
 MAX_POWER_SPIKE = 8000     # Maximum allowable power in Watts; higher values are considered invalid
 
-# ------------------------------
+MAX_VALID_CYCLE = 20000   # Hard ceiling for cycle count (real batteries don't exceed this)
+MAX_CYCLE_STEP = 5        # Max allowed cycle increment per polling interval
+
+# -------------------------------
 # Keys for spike filtering
-# ------------------------------
+# -------------------------------
 # Spike filtering is applied selectively to certain metrics to remove sudden unrealistic jumps.
 # These keys define which telemetry fields will undergo spike filtering.
 SPIKE_FILTER_KEYS = ['voltage', 'soc']  # Only apply spike filtering to voltage and SOC
 
-# ------------------------------
+# -------------------------------
 # Scaling factors for raw data
-# ------------------------------
+# -------------------------------
 # Raw Modbus values are integers that need to be converted to meaningful units.
 # For example, raw voltage = 5234 → actual voltage = 5234 / VOLTAGE_SCALE = 52.34 V
 CURRENT_SCALE = 100  # Raw current values divided by 100 to get Amps
 VOLTAGE_SCALE = 100  # Raw voltage values divided by 100 to get Volts
 SOC_SCALE = 10       # Raw SOC values divided by 10 to get percent (e.g., 855 → 85.5%)
 
-# ------------------------------
+# -------------------------------
 # Hex offsets in the main block
-# ------------------------------
+# -------------------------------
 # Each telemetry field is located at a specific byte range in the main telemetry block.
 # These offsets define the start and end positions for slicing the hex string representation of the block.
 OFFSET_CURRENT_START = 6    # Current data starts at byte 6
@@ -145,9 +148,9 @@ OFFSET_SOC_END       = 18   # SOC data ends at byte 18 (exclusive)
 OFFSET_CYCLE_START   = 34   # Cycle count starts at byte 34
 OFFSET_CYCLE_END     = 38   # Cycle count ends at byte 38 (exclusive)
 
-# ------------------------------
+# -------------------------------
 # Cell parsing offsets
-# ------------------------------
+# -------------------------------
 # Each individual cell voltage is also stored in a fixed position within the cells buffer.
 # The following constants allow sequential extraction of all cell voltages.
 NUM_CELLS       = 16      # Total number of cells in the battery
@@ -159,23 +162,23 @@ CELL_HEX_END    = 10      # Ending byte of the first cell's data (exclusive)
 # end   = CELL_HEX_END + CELL_HEX_STEP * i
 # where i = 0..NUM_CELLS-1
 
-# ------------------------------
+# -------------------------------
 # Console output formatting
-# ------------------------------
+# -------------------------------
 # Length of the separator line printed in the console for readability.
 CONSOLE_SEPARATOR_LEN = 112
 
-# ------------------------------
+# -------------------------------
 # SOC bounds
-# ------------------------------
+# -------------------------------
 # Define the valid range of the State of Charge (SOC) in percent.
 # Values outside this range are considered invalid or erroneous.
 SOC_MIN = 0
 SOC_MAX = 100
 
-# ------------------------------
+# -------------------------------
 # Template for parsed result
-# ------------------------------
+# -------------------------------
 # When parsing telemetry, we always return a dictionary with the following keys.
 # Initially, all values are None and will be filled with actual readings if valid.
 RESULT_TEMPLATE = {

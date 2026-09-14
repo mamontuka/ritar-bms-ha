@@ -4,6 +4,9 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.10]
+- Cycle filtering fixes
+
 ## [2.0.9]
 - Improve cycle spike filtering for 2+ battery setups with long RS485 wiring.
 
