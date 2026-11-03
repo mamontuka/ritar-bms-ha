@@ -4,7 +4,7 @@
     /config/united_bms/parser_battery.py
 ```
 
-2. Open up Ritar BMS Addon settings in text edit mode, put into text config window content from ![This file](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/Ritar_LFP12_8V100AH_(G24)_G3_(BT)/addon_text_config.yaml) :
+2. Open up Ritar BMS Addon settings in text edit mode, put into text config window content from [This file](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/Ritar_LFP12_8V100AH_(G24)_G3_(BT)/addon_text_config.yaml) :
 
 ```
     connection_type: ethernet
