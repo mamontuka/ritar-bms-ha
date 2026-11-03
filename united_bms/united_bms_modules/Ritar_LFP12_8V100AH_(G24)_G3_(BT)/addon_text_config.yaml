@@ -22,7 +22,7 @@ console_output_enabled: false
 zero_pad_cells: false
 mqtt_broker: core-mosquitto
 mqtt_port: 1883
-mqtt_username: rodion
-mqtt_password: rodion098123
+mqtt_username: username
+mqtt_password: password
 warnings_enabled: false
 enable_debug_shell: false
