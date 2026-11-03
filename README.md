@@ -3,13 +3,14 @@
 
 ---
 
-**Current version: [2.0.10] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
+**Current version: [2.0.11] 🧾  See [Update Details](https://github.com/mamontuka/ritar-bms-ha/blob/main/CHANGELOG.md) for full version history.**
 
 ---
 
 ## 🌐 Supported Devices
 
 - ✅ Ritar Power 5KWH / 10KWH / 15KWH models
+- ✅ Ritar Power Compatible 12v 4S batteries, override modules [HERE](https://github.com/mamontuka/ritar-bms-ha/tree/main/united_bms/united_bms_modules/Ritar_LFP12_8V100AH_(G24)_G3_(BT)) (**NOT** tested over Bluetooth gate)
 - ✅ Partial support: YHI Energy, Hollandia Power, [Predator](https://www.reddit.com/r/SolarDIY/comments/1lbz5dk/inside_a_ritar_xplfp48v100ah_predator/)
 - ✅ Others via [United BMS](https://github.com/mamontuka/ritar-bms-ha/blob/main/united_bms/united_bms_modules/README.md)
 - ✅ Supported **RS485-ethernet**, **serial**, **bluetooth** connection types
