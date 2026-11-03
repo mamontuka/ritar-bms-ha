@@ -249,7 +249,7 @@ def process_battery(
     return current, power
 
 # === Get number of cells from add-on config with fallback ===
-def get_num_cells_from_config(default=16, min_cells=8, max_cells=16, config_path="/data/options.json"):
+def get_num_cells_from_config(default=16, min_cells=4, max_cells=16, config_path="/data/options.json"):
     """
     Read number of cells from add-on configuration.
     Returns default if missing or out of bounds.
