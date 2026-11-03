@@ -18,7 +18,7 @@ battery_model: United BMS Custom
 num_batteries: 1
 num_cells: 4
 read_timeout: 15
-console_output_enabled: true
+console_output_enabled: false
 zero_pad_cells: false
 mqtt_broker: core-mosquitto
 mqtt_port: 1883
