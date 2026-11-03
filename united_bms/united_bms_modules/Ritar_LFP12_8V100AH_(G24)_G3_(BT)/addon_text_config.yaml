@@ -15,7 +15,7 @@ bluetooth_delay_between_query: 0.5
 bluetooth_answer_wait_timeout: 2
 bluetooth_next_battery_delay: 3
 battery_model: United BMS Custom
-num_batteries: 2
+num_batteries: 1
 num_cells: 4
 read_timeout: 15
 console_output_enabled: true
