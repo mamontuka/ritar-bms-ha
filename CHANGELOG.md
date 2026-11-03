@@ -4,6 +4,9 @@ All notable changes to the Ritar BMS Home Assistant Addon are documented here.
 
 ---
 
+## [2.0.11]
+- Added support for Ritar Power Compatible 12v 4S batteries, override modules [HERE](https://github.com/mamontuka/ritar-bms-ha/tree/main/united_bms/united_bms_modules/Ritar_LFP12_8V100AH_(G24)_G3_(BT)) (**NOT** tested over Bluetooth gate)
+
 ## [2.0.10]
 - Cycle filtering fixes
 
