@@ -63,14 +63,14 @@ PAD_STATE_PATH = "/data/last_pad_state.json"    # Path to persistent file storin
 # Tune carefully depending on how much precision vs. performance you want.
 
 delta_filter = {
-    'voltage': 2.0,  # Minimum voltage change (V) required to trigger an update
-    'current': 1.0,  # Minimum current change (A) to trigger an update
-    'power': 1.0,  # Minimum power change (W) to trigger an update
-    'temperature': 1.0,  # Minimum change in cell temperature (°C)
-    'mos_temperature': 1.0,  # Minimum change in MOSFET temperature (°C)
-    'env_temperature': 1.0,  # Minimum change in ambient/environment temperature (°C)
-    'soc': 2.0,  # Minimum state-of-charge (%) change required
-    'cycle': 1  # Battery cycle count must increase by this value to trigger an update
+    'voltage': 2.0,           # Minimum voltage change (V) required to trigger an update
+    'current': 1.0,           # Minimum current change (A) to trigger an update
+    'power': 1.0,             # Minimum power change (W) to trigger an update
+    'temperature': 1.5,       # Minimum change in cell temperature (°C)
+    'mos_temperature': 0.5,   # Minimum change in MOSFET temperature (°C)
+    'env_temperature': 1.5,   # Minimum change in ambient/environment temperature (°C)
+    'soc': 2.0,               # Minimum state-of-charge (%) change required
+    'cycle': 1                # Battery cycle count must increase by this value to trigger an update
 }
 
 # === Spike filter thresholds for raw data validation ===
@@ -216,11 +216,10 @@ ENV_HEX_START = 10  # Start index in hex string for ENV temperature (inclusive)
 ENV_HEX_END = 14  # End index in hex string for ENV temperature (exclusive)
 
 # --- Spike filtering ---
-DELTA_TEMP_LIMIT = 1.0  # Maximum allowed difference between consecutive readings
-# beyond which a value is considered a spike and rejected
+DELTA_TEMP_LIMIT = 2.5         # Maximum allowed difference between consecutive readings
+                               # beyond which a value is considered a spike and rejected
 
 # --- MQTT temperatures publication filter ---
-TEMP_MQTT_LIMIT = 0.5  # Maximum allowed difference betwen previous value and current
-# used with RS485-ethernet/serial connection types,
-# overriden with bluetooth connection.
-
+TEMP_MQTT_LIMIT = 1.0          # Maximum allowed difference betwen previous value and current
+                               # used with RS485-ethernet/serial connection types,
+                               # overriden with bluetooth connection.
